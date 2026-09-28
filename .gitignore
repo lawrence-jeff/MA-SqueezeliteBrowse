@@ -1,0 +1,5 @@
+*.log
+aioslimproto_322/
+__pycache__/
+*.pyc
+.DS_Store

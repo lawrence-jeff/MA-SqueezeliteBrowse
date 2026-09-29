@@ -156,7 +156,7 @@ class SlimProtoCLI:
     _periodic_task: asyncio.Task | None = None
     _cli_server: asyncio.Server | None = None
     command_handler: SlimCLICommandHandler | None = None
-    
+
     def __init__(
         self,
         server: SlimServer,
@@ -442,12 +442,8 @@ class SlimProtoCLI:
         clientid: str = ""
         response = []
         streaming = False
+        long_poll = False
         json_msg: list[dict[str, Any]] = await request.json()
-        had_handshake = any(msg.get("channel") == "/meta/handshake" for msg in json_msg)
-        had_slim_message = any(
-            msg.get("channel") in ("/slim/subscribe", "/slim/request", "/slim/unsubscribe")
-            for msg in json_msg
-        )
         # cometd message is an array of commands/messages
         for cometd_msg in json_msg:
             channel = cometd_msg.get("channel")
@@ -534,6 +530,7 @@ class SlimProtoCLI:
                 # (re)connect message
                 logger.debug("Client (re-)connected: %s", clientid)
                 streaming = cometd_msg["connectionType"] == "streaming"
+                long_poll = not streaming
                 cometd_client.streaming = streaming
                 # confirm the connection
                 response.append(
@@ -689,20 +686,9 @@ class SlimProtoCLI:
         while True:
             try:
                 msg = cometd_client.queue.get_nowait()
-                self.logger.debug(  # DIAG
-                    "[DIAG] _handle_cometd_client: drained from queue "
-                    "channel=%r id=%r",
-                    msg.get("channel"), msg.get("id"),
-                )
                 response.append(msg)
             except asyncio.QueueEmpty:
                 break
-        self.logger.debug(  # DIAG
-            "[DIAG] _handle_cometd_client: about to send response, "
-            "streaming=%r, response channels/ids=%r",
-            streaming,
-            [(m.get("channel"), m.get("id")) for m in response],
-        )
         # send response
         headers = {
             "Server": "Logitech Media Server (7.9.9 - 1667251155)",
@@ -712,19 +698,13 @@ class SlimProtoCLI:
             "Connection": "keep-alive",
         }
         if not streaming:
-            # Long-polling mode: if we don't already have queued data messages,
+            # Long-polling connect: if we don't already have queued data messages,
             # hold the connection open until a message arrives or timeout (30s).
-            # Never applies to a handshake response, which has nothing else to wait for and will cause a connection error in some cases
-            if not had_handshake and not had_slim_message and not any(
+            if long_poll and not any(
                 msg for msg in response if msg.get("channel", "").startswith("/slim/")
             ):
                 try:
                     msg = await asyncio.wait_for(cometd_client.queue.get(), timeout=30)
-                    self.logger.debug(  # DIAG
-                        "[DIAG] _handle_cometd_client: long-poll wait picked up "
-                        "channel=%r id=%r",
-                        msg.get("channel"), msg.get("id"),
-                    )
                     response.append(msg)
                     # drain any additional messages that arrived
                     while True:
@@ -733,16 +713,8 @@ class SlimProtoCLI:
                         except asyncio.QueueEmpty:
                             break
                 except (TimeoutError, asyncio.CancelledError):
-                    self.logger.debug(  # DIAG
-                        "[DIAG] _handle_cometd_client: long-poll wait timed "
-                        "out/cancelled with nothing in queue",
-                    )
+                    pass
             cometd_client.last_seen = int(time.time())
-            self.logger.debug(  # DIAG
-                "[DIAG] _handle_cometd_client: FINAL non-streaming response "
-                "channels/ids=%r",
-                [(m.get("channel"), m.get("id")) for m in response],
-            )
             return web.json_response(response, headers=headers)
 
         # streaming mode: send messages from the queue to the client
@@ -764,31 +736,16 @@ class SlimProtoCLI:
             while True:
                 # make sure we always send an array of messages
                 msg = [await cometd_client.queue.get()]
-                self.logger.debug(  # DIAG
-                    "[DIAG] _handle_cometd_client: streaming loop got from "
-                    "queue channel=%r id=%r",
-                    msg[0].get("channel"), msg[0].get("id"),
-                )
                 try:
                     chunk = json.dumps(msg).encode("utf8")
                     await resp.write(chunk)
-                    self.logger.debug(  # DIAG
-                        "[DIAG] _handle_cometd_client: streaming loop WROTE "
-                        "channel=%r id=%r (%r bytes)",
-                        msg[0].get("channel"), msg[0].get("id"), len(chunk),
-                    )
                     cometd_client.last_seen = int(time.time())
                 except (
                     ConnectionResetError,
                     ConnectionError,
                     BrokenPipeError,
                     RuntimeError,
-                ) as err:
-                    self.logger.debug(  # DIAG
-                        "[DIAG] _handle_cometd_client: streaming loop write "
-                        "FAILED (%r) for channel=%r id=%r - connection ending",
-                        err, msg[0].get("channel"), msg[0].get("id"),
-                    )
+                ):
                     break
         except asyncio.CancelledError:
             pass
@@ -812,25 +769,9 @@ class SlimProtoCLI:
         """
 
         async def _handle() -> None:
-            # ============= DIAG LOGGING (browselibrary/MA project, not
-            # upstream) - START ============= TO BACK OUT: delete every
-            # line tagged "# DIAG" below, and change
-            # "except asyncio.QueueFull:" back to
-            # "with suppress(asyncio.QueueFull):" wrapping the original
-            # bare client.queue.put_nowait(...) call. Purely
-            # observational - the only behavior change is that a
-            # QueueFull (previously silently swallowed) is now logged
-            # before being handled the same way as before.
             try:
                 result = await self._handle_command(cometd_request["data"]["request"])
-                self.logger.debug(  # DIAG
-                    "[DIAG] _handle_cometd_client_request: computed result for "
-                    "channel=%r id=%r result_keys=%r",
-                    cometd_request["data"]["response"],
-                    cometd_request["id"],
-                    list(result.keys()) if isinstance(result, dict) else type(result),
-                )
-                try:
+                with suppress(asyncio.QueueFull):
                     client.queue.put_nowait(
                         {
                             "channel": cometd_request["data"]["response"],
@@ -838,21 +779,6 @@ class SlimProtoCLI:
                             "data": result,
                             "ext": {"priority": cometd_request["data"].get("priority")},
                         },
-                    )
-                    self.logger.debug(  # DIAG
-                        "[DIAG] _handle_cometd_client_request: put_nowait SUCCEEDED "
-                        "for channel=%r id=%r client.queue.qsize()=%r",
-                        cometd_request["data"]["response"],
-                        cometd_request["id"],
-                        client.queue.qsize(),
-                    )
-                except asyncio.QueueFull:  # DIAG - was: `with suppress(...)`
-                    self.logger.debug(  # DIAG
-                        "[DIAG] _handle_cometd_client_request: put_nowait "
-                        "FAILED (QueueFull) for channel=%r id=%r - "
-                        "RESULT DROPPED HERE",
-                        cometd_request["data"]["response"],
-                        cometd_request["id"],
                     )
             except asyncio.CancelledError:
                 pass  # Task was cancelled, clean exit
@@ -862,7 +788,6 @@ class SlimProtoCLI:
                     err,
                     exc_info=err,
                 )
-            # ============= DIAG LOGGING - END =============
 
         asyncio.create_task(_handle())
 
@@ -1240,7 +1165,7 @@ class SlimProtoCLI:
             return
         if subcommand.startswith("preset_") and subcommand.endswith(".single"):
             # only handle http-based presets, ignore/forward all other
-            preset_id = subcommand.split("preset_")[1].split(".")[0]
+            preset_id = subcommand.split("preset_")[1].split(".", maxsplit=1)[0]
             preset_index = int(preset_id) - 1
             if len(player.presets) >= preset_index + 1:
                 preset = player.presets[preset_index]
@@ -1544,15 +1469,6 @@ def menu_item_from_media_details(
     return details
 
 
-# cli.py patch v1
-# Fixes playlist_item_from_media_details() hardcoding bitrate/samplerate/
-# samplesize to "" unconditionally (see below). Local patch marker for
-# this project - not an upstream aioslimproto version. Bump this comment
-# (v2, v3, ...) on any further change to this file so a diff against a
-# fresh pip download always shows what's actually been touched, same
-# convention as browselibrary.py's own version marker.
-
-
 def playlist_item_from_media_details(index: int, media: MediaDetails) -> PlaylistItem:
     """Parse PlaylistItem for the Json RPC interface from MediaDetails."""
     return {
@@ -1566,16 +1482,6 @@ def playlist_item_from_media_details(index: int, media: MediaDetails) -> Playlis
         "artwork_url": media.metadata.get("image_url", ""),
         "coverid": "-187651250107376",
         "duration": media.metadata.get("duration", ""),
-        # Previously hardcoded to "" unconditionally, regardless of what
-        # MediaMetadata actually carried - these three were never wired
-        # to anything. That's the actual root cause of the blank
-        # "Hz * bits" Now Playing display for MA-sourced tracks (vs.
-        # real LMS, which populates these from the file's real tags).
-        # Now sourced the same way every other field in this function
-        # already is: from the metadata dict the caller builds. Falls
-        # back to "" - today's behavior - when a caller doesn't set
-        # these keys, so this is additive-only and doesn't change
-        # behavior for any existing MediaDetails producer.
         "bitrate": media.metadata.get("bitrate", ""),
         "samplerate": media.metadata.get("samplerate", ""),
         "samplesize": media.metadata.get("samplesize", ""),

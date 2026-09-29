@@ -7,9 +7,9 @@ It works by injecting patched provider files and a patched `aioslimproto` packag
 ## How it works
 
 - `provider.py`, `browselibrary.py`, `player.py` — patched Squeezelite provider for Music Assistant, adding a `BrowseLibraryHandler` that serves the Music Assistant library over the Squeezelite/SlimProto protocol.
-- `cli.py`, `models.py`, `server.py` — patched into a clean copy of the `aioslimproto` package (pinned to 3.2.2) to add the handshake and extra HTTP routes the browse UI needs.
+- `cli.py`, `models.py`, `server.py` — patched into a clean copy of the `aioslimproto` package (pinned to 3.2.3) to add extra HTTP routes and playlist metadata fixes the browse UI needs.
 - `static/` — the menu icon assets (album art placeholders, artists, playlists, etc.) the browse UI serves to the client.
-- `reinject.sh` — downloads a fresh `aioslimproto` 3.2.2 wheel, copies it and all the patched files into the running Music Assistant container, verifies the patches landed, and restarts the container so they take effect.
+- `reinject.sh` — downloads a fresh `aioslimproto` 3.2.3 wheel, copies it and all the patched files into the running Music Assistant container, verifies the patches landed, and restarts the container so they take effect.
 
 ## Requirements
 

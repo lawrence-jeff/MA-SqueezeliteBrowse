@@ -6,20 +6,20 @@ SRC=/config/LMSTest
 SQZ_DEST=/app/venv/lib/python3.14/site-packages/music_assistant/providers/squeezelite
 ASP_DEST=/app/venv/lib/python3.14/site-packages/aioslimproto
 
-echo "=== Downloading aioslimproto 3.2.2 fresh ==="
-mkdir -p $SRC/aioslimproto_322
-cd $SRC/aioslimproto_322
-pip download aioslimproto==3.2.2 --no-deps -d . --no-binary :none: 2>/dev/null || pip download aioslimproto==3.2.2 --no-deps -d .
-unzip -o -q aioslimproto-3.2.2-py3-none-any.whl -d extracted
+echo "=== Downloading aioslimproto 3.2.3 fresh ==="
+mkdir -p $SRC/aioslimproto_323
+cd $SRC/aioslimproto_323
+pip download aioslimproto==3.2.3 --no-deps -d . --no-binary :none: 2>/dev/null || pip download aioslimproto==3.2.3 --no-deps -d .
+unzip -o -q aioslimproto-3.2.3-py3-none-any.whl -d extracted
 cd -
 
 echo ""
-echo "=== Replacing the ENTIRE aioslimproto package with the fresh 3.2.2 install ==="
+echo "=== Replacing the ENTIRE aioslimproto package with the fresh 3.2.3 install ==="
 docker exec $CONTAINER rm -rf $ASP_DEST
-docker cp $SRC/aioslimproto_322/extracted/aioslimproto/. $CONTAINER:$ASP_DEST
+docker cp $SRC/aioslimproto_323/extracted/aioslimproto/. $CONTAINER:$ASP_DEST
 
 echo ""
-echo "=== Now applying our patches on top of the clean 3.2.2 base ==="
+echo "=== Now applying our patches on top of the clean 3.2.3 base ==="
 docker cp $SRC/cli.py    $CONTAINER:$ASP_DEST/cli.py
 docker cp $SRC/models.py    $CONTAINER:$ASP_DEST/models.py
 docker cp $SRC/server.py $CONTAINER:$ASP_DEST/server.py
@@ -65,8 +65,8 @@ echo "=== Verifying everything landed ==="
 docker exec $CONTAINER python3 -c "import aioslimproto; print('aioslimproto package present')"
 docker exec $CONTAINER grep -c "extra_routes" $ASP_DEST/server.py \
     || { echo "FAILED: extra_routes marker missing from server.py - patch didn't land"; exit 1; }
-docker exec $CONTAINER grep -c "had_handshake" $ASP_DEST/cli.py \
-    || { echo "FAILED: had_handshake marker missing from cli.py - patch didn't land"; exit 1; }
+docker exec $CONTAINER grep -c "self.extra_routes" $ASP_DEST/cli.py \
+    || { echo "FAILED: self.extra_routes marker missing from cli.py - patch didn't land"; exit 1; }
 docker exec $CONTAINER grep -c "BrowseLibraryHandler" $SQZ_DEST/provider.py \
     || { echo "FAILED: BrowseLibraryHandler marker missing from provider.py - patch didn't land"; exit 1; }
 docker exec $CONTAINER grep -c "^# browselibrary.py v" $SQZ_DEST/browselibrary.py \

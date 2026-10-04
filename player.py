@@ -302,34 +302,10 @@ class SqueezelitePlayer(Player):
             await self.multi_client_stream.stop()
             self.multi_client_stream = None
 
-        # Clear any previously gapless-preloaded "next" item - it was
-        # enqueued against whatever track was current BEFORE this call,
-        # and a new play_media() call always means a genuinely new
-        # current track is starting now (a real device test confirmed
-        # this needs to happen unconditionally, not just for
-        # announcements, which is all this used to be scoped to): a
-        # queue-navigation jump (e.g. "previous" skipping back past the
-        # item _next_media was preloaded for) leaves that reference
-        # stale, pointing at a track that's no longer next at all. If
-        # the device happens to disconnect/reconnect during this exact
-        # transition - confirmed via a real capture, a slower-than-
-        # usual source (Spotify, picked for this retry while the
-        # original local-file buffer had already been discarded)
-        # gave a real window for exactly this - aioslimproto's own
-        # reconnect-recovery path re-sends _next_media's current value,
-        # so a stale one gets sent instead of the real new current
-        # track, leaving the player stopped. A fresh, correct
-        # _next_media gets set again shortly after anyway, by this
-        # project's own enqueue_next_media() once MA's queue determines
-        # what the real next item is for the track starting now - so
-        # clearing it here has no effect on normal gapless playback,
-        # only on this stale-reference window. Matches real aioslimproto
-        # source exactly: stop() itself already always clears
-        # _next_media unconditionally (see mark_ended()'s own comment
-        # below) - play_media() starting a genuinely new current track
-        # warrants the same, not just the announcement case this was
-        # previously scoped to.
-        self.client._next_media = None
+        # Clear next media item during announcements to prevent playing the
+        # next enqueued track after it finishes.
+        if media.media_type == MediaType.ANNOUNCEMENT:
+            self.client._next_media = None
 
         if not self.group_members:
             # Simple, single-player playback

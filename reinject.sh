@@ -2,9 +2,37 @@
 set -e
 
 CONTAINER=app_d5369777_music_assistant
+MA_SLUG=d5369777_music_assistant
+LMS_SLUG=fc57b866_lms
 SRC=/config/LMSTest
 SQZ_DEST=/app/venv/lib/python3.14/site-packages/music_assistant/providers/squeezelite
 ASP_DEST=/app/venv/lib/python3.14/site-packages/aioslimproto
+
+# Real LMS (run manually for proxy-capture comparisons against our own
+# server - see the project's own notes on that) and MA both want the
+# same discovery/SlimProto ports. Starting LMS while MA is running
+# crashes MA's own add-on outright (Supervisor state goes to "error"
+# and the container is torn down entirely, not just stopped - "docker
+# start" on it afterward does nothing because there's no longer a
+# container to start). If that's already happened by the time this
+# script runs, recover here instead of requiring it be done by hand
+# every time: stop LMS (if it's the one holding the ports) and start
+# MA back up via the Supervisor API (not "docker start" - a Supervisor-
+# managed add-on's container has to be recreated via Supervisor, not
+# raw docker, once it's gone), then wait for the container to actually
+# exist before continuing.
+if ! docker inspect $CONTAINER > /dev/null 2>&1; then
+    echo "=== $CONTAINER is gone (not just stopped) - stopping real LMS and restarting MA via Supervisor ==="
+    docker exec hassio_cli ha apps stop $LMS_SLUG 2>&1 || true
+    docker exec hassio_cli ha apps start $MA_SLUG 2>&1
+    echo "=== Waiting for $CONTAINER to come back up ==="
+    for i in $(seq 1 30); do
+        docker inspect $CONTAINER > /dev/null 2>&1 && break
+        sleep 1
+    done
+    docker inspect $CONTAINER > /dev/null 2>&1 \
+        || { echo "FAILED: $CONTAINER still doesn't exist after restarting MA via Supervisor"; exit 1; }
+fi
 
 echo "=== Downloading aioslimproto 3.2.3 fresh ==="
 mkdir -p $SRC/aioslimproto_323

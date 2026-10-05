@@ -156,7 +156,14 @@ class SlimProtoCLI:
     _periodic_task: asyncio.Task | None = None
     _cli_server: asyncio.Server | None = None
     command_handler: SlimCLICommandHandler | None = None
-    
+    # Set by the provider after construction. Returns MA's display_name for a
+    # player_id, or None if MA doesn't know that player. Independent of
+    # command_handler so the name works without the browse feature.
+    display_name_lookup: Callable[[str], str | None] | None = None
+    # Set by the provider after construction. The Music Assistant instance used
+    # for seek and play. Independent of command_handler so these work without browse.
+    mass: Any | None = None
+
     def __init__(
         self,
         server: SlimServer,
@@ -887,6 +894,20 @@ class SlimProtoCLI:
         except NotImplementedError:
             self._publish_unhandled_command(slim_command)
             return None
+        # TRACE (temporary): log every status response we send, to compare builds
+        if slim_command.command == "status" and isinstance(cmd_result, dict):
+            _il = cmd_result.get("item_loop")
+            _first = _il[0] if _il else None
+            print(
+                f"[TRACE] {time.strftime('%H:%M:%S')} menu={slim_command.kwargs.get('menu')!r} "
+                f"mode={cmd_result.get('mode')!r} power={cmd_result.get('power')!r} "
+                f"time={cmd_result.get('time')!r} tracks={cmd_result.get('playlist_tracks')!r} "
+                f"cur={cmd_result.get('playlist_cur_index')!r} "
+                f"item_loop={'none' if _il is None else len(_il)} "
+                f"first_has_params={bool(_first and _first.get('params'))} "
+                f"keys={len(cmd_result)}",
+                flush=True,
+            )
 
         if cmd_result is None:
             return {}
@@ -942,8 +963,11 @@ class SlimProtoCLI:
         member not individually registered) - same value as before,
         never worse than today's behavior.
         """
-        mass_player = self.command_handler.mass.players.get_player(player.player_id)
-        return mass_player.display_name if mass_player else player.name
+        if self.display_name_lookup is not None:
+            name = self.display_name_lookup(player.player_id)
+            if name:
+                return name
+        return player.name
 
     @staticmethod
     def _corrected_elapsed_seconds(player) -> float:
@@ -1347,7 +1371,7 @@ class SlimProtoCLI:
         # self.command_handler, and BrowseLibraryHandler (browselibrary.py,
         # this same project) exposes .mass directly - the same object
         # every other handler in that file already uses throughout.
-        await self.command_handler.mass.player_queues.seek(queue_id=player_id, position=target)
+        await self.mass.player_queues.seek(queue_id=player_id, position=target)
         return None
 
     async def _handle_power(
@@ -1393,7 +1417,7 @@ class SlimProtoCLI:
         confirmed for _handle_time's own seek() call above (see that
         method's own comment for the full account of how it was found).
         """
-        await self.command_handler.mass.player_queues.play(queue_id=player_id)
+        await self.mass.player_queues.play(queue_id=player_id)
 
     async def _handle_stop(
         self,
@@ -1424,7 +1448,7 @@ class SlimProtoCLI:
             if player.state == PlayerState.PLAYING:
                 await player.pause()
             else:
-                await self.command_handler.mass.player_queues.play(queue_id=player_id)
+                await self.mass.player_queues.play(queue_id=player_id)
 
     async def _handle_mode(
         self,

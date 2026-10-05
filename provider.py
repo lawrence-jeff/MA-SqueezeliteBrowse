@@ -121,10 +121,20 @@ class SqueezelitePlayerProvider(PlayerProvider):
             },
         )
 
+    def _lookup_display_name(self, player_id: str) -> str | None:
+        """Return MA's display_name for a player, or None if MA doesn't know it."""
+        mass_player = self.mass.players.get_player(player_id)
+        return mass_player.display_name if mass_player else None
+
     async def loaded_in_mass(self) -> None:
         """Call after the provider has been loaded."""
         await super().loaded_in_mass()
         assert self.slimproto is not None  # for type checker
+        # Gives the CLI MA's display_name for each player, without going through
+        # BrowseLibraryHandler, so the device name updates even with browse off.
+        self.slimproto.cli.display_name_lookup = self._lookup_display_name
+        # Gives the CLI MA itself for seek and play, without going through BrowseLibraryHandler.
+        self.slimproto.cli.mass = self.mass
         # subscribe before starting the socket server: aioslimproto does not buffer
         # events, so a client connecting before we subscribe would be missed entirely
         self.slimproto.subscribe(self._handle_slimproto_event)

@@ -28,7 +28,7 @@ It works by injecting patched provider files and a patched `aioslimproto` packag
    curl -s "http://192.168.0.241/cgi-bin/main.cgi?ACTION=reboot" > /dev/null
    ```
    Update the IP to your client, or remove the line if you don't need the client rebooted after each run.
-5. If you're also testing against a real Squeezebox device (e.g. a UE Radio) on the same network, `reinject.sh` includes a second, separate best-effort step that reboots it over SSH afterward:
+5. If you're also testing against a real Squeezebox device (e.g. a UE Radio) on the same network, `reinject.sh` includes a second, separate best-effort step that reboots it over SSH afterward. The device must have **Remote Access** (sometimes called SSH/remote support access) enabled in its own on-device Settings menu first, or the SSH connection will simply fail/time out regardless of the credentials/algorithm overrides below.
    ```
    sshpass -p '1234' ssh -oKexAlgorithms=+diffie-hellman-group1-sha1 -oHostKeyAlgorithms=+ssh-rsa -oCiphers=+aes256-cbc -oMACs=+hmac-sha1 root@192.168.0.242 reboot
    ```

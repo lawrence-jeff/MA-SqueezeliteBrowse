@@ -10,7 +10,7 @@ from aioslimproto.models import EventType as SlimEventType
 from aioslimproto.models import SlimEvent
 from aioslimproto.server import SlimServer
 from music_assistant_models.config_entries import ConfigEntry
-from music_assistant_models.enums import ConfigEntryType, MediaType
+from music_assistant_models.enums import ConfigEntryType, EventType, MediaType
 from music_assistant_models.errors import SetupFailedError
 
 from music_assistant.constants import CONF_PORT, CONF_SYNC_ADJUST, VERBOSE_LOG_LEVEL
@@ -29,6 +29,7 @@ from .player import SqueezelitePlayer
 
 if TYPE_CHECKING:
     from aioslimproto.client import SlimClient
+    from music_assistant_models.event import MassEvent
 
 
 class SqueezelitePlayerProvider(PlayerProvider):
@@ -127,6 +128,27 @@ class SqueezelitePlayerProvider(PlayerProvider):
         # subscribe before starting the socket server: aioslimproto does not buffer
         # events, so a client connecting before we subscribe would be missed entirely
         self.slimproto.subscribe(self._handle_slimproto_event)
+        # Real, confirmed gap: _push_queue_update() (browselibrary.py) only
+        # ever ran for queue mutations that arrived AS a SlimProto command
+        # (a tap on the device's own queue-view screen) - anything that
+        # changed the queue from elsewhere (the MA app/web UI, voice,
+        # another integration) never reached it at all, since
+        # BrowseLibraryHandler is a command handler, not a listener on
+        # MA's own queue state. A real device test (a client debug log
+        # showing zero playerstatus/menustatus activity across 13 queue
+        # deletions made from the MA app) confirmed this is a real,
+        # observable symptom - not just a theoretical gap - the connected
+        # SlimProto client's queue-view screen never refreshed because
+        # nothing ever told it to. QUEUE_ITEMS_UPDATED (confirmed via the
+        # real enum in music_assistant_models) fires for every queue
+        # mutation regardless of source, with object_id set to the real
+        # queue_id - which is the same value as player_id throughout this
+        # project's own code (see every other mass.player_queues call in
+        # browselibrary.py/player.py). Routing it through the exact same
+        # _push_queue_update() browselibrary.py's own command handlers
+        # already use (not a second, parallel implementation) keeps the
+        # playlist_timestamp-bumping fix in exactly one place.
+        self.mass.subscribe(self._handle_queue_items_updated, EventType.QUEUE_ITEMS_UPDATED)
         try:
             await self.slimproto.start()
         except Exception as err:
@@ -233,6 +255,22 @@ class SqueezelitePlayerProvider(PlayerProvider):
 
         # forward all other events to the player itself
         player.handle_slim_event(event)
+
+    def _handle_queue_items_updated(self, event: MassEvent) -> None:
+        """Handle a queue mutation from ANY source (MA app/web UI, voice,
+        another integration - not just this provider's own SlimProto
+        command handlers), pushing the same real queue-view update those
+        handlers already push for a mutation made from the device itself.
+
+        object_id is the real queue_id - confirmed the same value as
+        player_id for this provider throughout the rest of this project's
+        own code (every mass.player_queues call in browselibrary.py/
+        player.py already assumes this).
+        """
+        if self.mass.closing or not self.slimproto or not event.object_id:
+            return
+        handler = cast("BrowseLibraryHandler", self.slimproto.cli.command_handler)
+        self.mass.create_task(handler._push_queue_update(event.object_id))
 
     async def _serve_multi_client_stream(self, request: web.Request) -> web.StreamResponse:
         """Serve the multi-client flow stream audio to a player."""

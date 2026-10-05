@@ -380,6 +380,28 @@ class SqueezelitePlayer(Player):
     async def enqueue_next_media(self, media: PlayerMedia) -> None:
         """Handle enqueuing next media item."""
         stream_url = await self.provider.mass.streams.resolve_stream_url(self.player_id, media)
+        # [DIAG] Investigating a real device report (UE Radio, real
+        # Squeezebox firmware, not JiveLite): adding a second queue item
+        # while a track is playing froze the current track at ~16s in,
+        # with no further STMt/STMd/STMu from the device afterward.
+        # aioslimproto's own play_url() (enqueue=True) takes a completely
+        # passive "stash _next_media and return" path when
+        # self.client._decoder_ready is False, touching nothing about
+        # current playback - but falls through to immediately start the
+        # new stream right now (the "gapless handoff" path, meant for
+        # near-end-of-track) if _decoder_ready is already True. No STMd
+        # was seen in the real capture between this track starting and
+        # this enqueue call, so decoder_ready should be False - logging
+        # the real value here instead of assuming, since that's the one
+        # fact that distinguishes "should have been a no-op" from
+        # "jumped the gun and interrupted playback early".
+        print(f"[DIAG] enqueue_next_media: player_id={self.player_id!r} "
+              f"client.state={self.client.state!r} "
+              f"client._decoder_ready={self.client._decoder_ready!r} "
+              f"client.elapsed_seconds={self.client.elapsed_seconds!r} "
+              f"client._next_media={self.client._next_media!r} "
+              f"client._buffering_media={self.client._buffering_media!r}",
+              flush=True)
         await self._handle_play_url_for_slimplayer(
             self.client,
             url=stream_url,

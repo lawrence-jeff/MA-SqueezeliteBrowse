@@ -80,7 +80,26 @@ NOT yet handled (left for later, same as before):
     understands, so that one link is real.
 """
 
-# browselibrary.py v73 | 2026-10-01 | Fixes radio stations (and
+# browselibrary.py v74 | 2026-10-04 | Fixes a real, confirmed cause of
+# the UE Radio (real Squeezebox 7.7.3 firmware, not JiveLite) losing
+# audio and crashing several client-side applets after a queue add:
+# _push_queue_update's own "Push 2" sent a positional [player_id,
+# item_loop, "replace", player_id] ARRAY - the real shape aioslimproto
+# itself only ever uses for a DIFFERENT channel (menustatus, for
+# PLAYER_PRESETS_UPDATED) - onto the player's playerstatus channel,
+# which the real client always expects to carry a plain object. A real
+# client debug log confirmed the exact mechanism: receiving that array
+# where an object was expected, every string-keyed field (connected,
+# power, mode, ...) read back as nil, and the client's own, legitimate
+# "player disconnected and powered off" handling for that case silenced
+# a still-genuinely-playing track and cascaded into further real
+# crashes (NowPlaying/SlimBrowser choking on now-nil track/mode/
+# shuffle/repeat data). Removed outright (see _push_queue_update's own
+# docstring for the full account) rather than redirected to a real
+# menustatus subscription - confirmed via a real stock-MA A/B test that
+# this symptom does NOT occur without this file's patches at all, i.e.
+# this was never a hardware or aioslimproto-core limitation.
+# (v73 was: Fixes radio stations (and
 # podcasts/audiobooks) showing no artwork on the Now Playing screen -
 # real client source (Player.lua's own _whatsPlaying) confirmed the
 # artwork notification is sourced purely from item_loop[1]'s own
@@ -954,7 +973,6 @@ import re
 import struct
 import urllib.parse
 import zlib
-from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -3000,119 +3018,46 @@ class BrowseLibraryHandler:
         v50, since the new playlist jump/delete/move/clear handlers below
         need the exact same real push after every queue-mutating action,
         not just add/insert.
+
+        Only does the one push now (v74) - reuses aioslimproto's own
+        _on_player_event (cli.py) instead of reinventing subscription-push
+        logic: looks up the CometD client subscribed for this player_id,
+        and if it has a stored playerstatus subscription (which is what
+        the queue-view screen registers on open, since it sends
+        subscribe:600), immediately replays that stored request and
+        pushes the result - the same call the periodic loop makes, just
+        triggered here instead of by a timer.
+
+        A second push used to be sent alongside this one, built by
+        copying cli.py's PLAYER_PRESETS_UPDATED push verbatim in shape -
+        a positional [player_id, item_loop, "replace", player_id] ARRAY,
+        not an object - onto this SAME playerstatus channel/id. That
+        shape is only valid on the menustatus channel (the one real,
+        confirmed place aioslimproto itself sends it, for exactly that
+        event); it was never valid for playerstatus, which the real
+        client (jive/slim/Player.lua's own _process_playerstatus ->
+        updatePlayerInfo) always expects to be a plain object with keys
+        like "connected"/"power"/"mode". A real device test and client
+        debug log confirmed the actual, severe consequence: receiving
+        that array on the playerstatus channel, the client indexes it by
+        string key and gets nil for every field - playerInfo.connected
+        logged as literally "nil", which updatePlayerInfo's own existing
+        false-transition handling (see Player.lua's own source) reads as
+        "the player just disconnected and powered off", immediately
+        turning soft power off (killing audio on a still-genuinely-
+        playing track) and cascading into a string of further real
+        crashes in NowPlaying/SlimBrowser as they each choke on now-nil
+        mode/shuffle/repeat/track fields they'd normally always have.
+        Removed outright rather than redirected to a real menustatus
+        subscription - this file's one playerstatus push already
+        includes a real item_loop (via menu='menu') when the subscribed
+        request asks for one, so there's nothing a second push was
+        uniquely providing that justifies the real risk of getting the
+        channel/shape pairing wrong again.
         """
-        # TWO pushes, not one - confirmed necessary via a real
-        # device test after v36 shipped just the first: the header
-        # ("Playing X of Y") updated immediately, but the scrollable
-        # queue-view LIST itself still didn't, until the next real
-        # track change. Root cause, found by reading cli.py's other
-        # real subscription-push example (PLAYER_PRESETS_UPDATED)
-        # side by side with what v36 was doing: that's the only
-        # place in aioslimproto that successfully pushes a live list
-        # update, and it does NOT go through _handle_cometd_client_
-        # request (a generic replayed-request response) - it builds
-        # a specific ["replace"] instruction and puts it directly on
-        # the client's queue. v36's _on_player_event(PLAYER_UPDATED)
-        # call only does the former, which is apparently sufficient
-        # for scalar header fields but not for triggering the list
-        # widget's own live redraw.
-        #
-        # Push 1 (unchanged from v36) - reuses aioslimproto's own
-        # _on_player_event (cli.py) instead of reinventing
-        # subscription-push logic: looks up the CometD client
-        # subscribed for this player_id, and if it has a stored
-        # playerstatus subscription (which is what the queue-view
-        # screen registers on open, since it sends subscribe:600),
-        # immediately replays that stored request and pushes the
-        # result - the same call the periodic loop makes, just
-        # triggered here instead of by a timer. Confirmed via a real
-        # trace through both event systems that _on_player_event is
-        # private to aioslimproto's CometD/CLI layer only
-        # (SlimProtoCLI) - entirely separate from
-        # SlimServer.subscribe()'s own event bus (what provider.py's
-        # _handle_slimproto_event listens on) - so this has no other
-        # side effects beyond the intended push. The channel-key
-        # assumption this rests on (f"/{{client_id}}/slim/
-        # playerstatus/{{player_id}}", the same hardcoded pattern
-        # _on_player_event's own PLAYER_UPDATED branch already uses)
-        # IS now confirmed correct via a real device test: the
-        # header did update, meaning the push reached the right
-        # subscription.
         cli = self.provider.slimproto.cli
         await cli._on_player_event(
             SlimEvent(type=EventType.PLAYER_UPDATED, player_id=player_id))
-
-        # Push 2 (new) - the actual list-replace push, built by
-        # copying cli.py's PLAYER_PRESETS_UPDATED push verbatim in
-        # shape (same "channel"/"id"/"data"/"ext" structure, same
-        # [player_id, item_loop, "replace", player_id] data array,
-        # same client.queue.put_nowait + QueueFull suppression) -
-        # substituting our own real queue item_loop
-        # (_build_queue_item_loop, the same helper _handle_
-        # queue_status itself uses) for the presets menu the
-        # original passes. Looks up the same subscription key push 1
-        # already confirmed correct, rather than re-deriving it.
-        #
-        # offset/limit for the rebuild: reads them from the
-        # SUBSCRIBED request's own stored args (sub["data"]
-        # ["request"][1]), not hardcoded - the client's original
-        # subscribe call is the only real source of what window it
-        # actually wants kept in sync live, and this deliberately
-        # matches _handle_queue_status's own args-parsing logic
-        # (args[0]=offset, args[1]=limit, "-" meaning "anchor on the
-        # current queue position") rather than inventing a second,
-        # possibly-inconsistent interpretation.
-        #
-        # Confirmed working via a real device test (v38/v39) for the
-        # add/insert case; the jump/delete/move/clear callers added in
-        # v50 reuse this same push unmodified.
-        client = next(
-            (x for x in cli._cometd_clients.values() if x.player_id == player_id),
-            None,
-        )
-        if client is not None and (
-            sub := client.slim_subscriptions.get(
-                f"/{client.client_id}/slim/playerstatus/{player_id}",
-            )
-        ):
-            queue = self.mass.player_queues.get_active_queue(player_id)
-            if queue is not None:
-                # sub["data"]["request"][1] is the FULL inner array
-                # INCLUDING the command name - real captures confirm
-                # the stored shape is ['status', '-', 10,
-                # 'menu:menu', ...], not just the offset/limit args
-                # on their own (matches the documented real
-                # /slim/subscribe format: request => ['',
-                # ['serverstatus', 0, 50, 'subscribe:60']]).
-                # sub_args[0] is therefore the command name itself
-                # ('status'), offset is at [1], limit at [2] - a
-                # real off-by-one bug in the first version of this
-                # push, confirmed via a real traceback (ValueError:
-                # invalid literal for int() with base 10: '-' -
-                # attempting int() on the offset string it had
-                # mistaken for the limit).
-                sub_args = sub["data"]["request"][1][1:]
-                raw_offset = sub_args[0] if len(sub_args) > 0 else "-"
-                sub_limit = int(sub_args[1]) if len(sub_args) > 1 else 10
-                sub_offset = (
-                    queue.current_index or 0
-                    if raw_offset == "-"
-                    else int(raw_offset)
-                )
-                item_loop = await self._build_queue_item_loop(
-                    queue, sub_offset, sub_limit)
-                print(f"[BL] queue push: player_id={player_id!r} "
-                      f"offset={sub_offset!r} limit={sub_limit!r} "
-                      f"returned={len(item_loop)!r}", flush=True)
-                with suppress(asyncio.QueueFull):
-                    client.queue.put_nowait(
-                        {
-                            "channel": sub["data"]["response"],
-                            "id": sub["id"],
-                            "data": [player_id, item_loop, "replace", player_id],
-                            "ext": {"priority": sub["data"].get("priority")},
-                        },
-                    )
         return None
 
     async def _handle_trackinfo(self, slim_command):

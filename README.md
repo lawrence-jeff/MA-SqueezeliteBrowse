@@ -16,6 +16,7 @@ It works by injecting patched provider files and a patched `aioslimproto` packag
 - Home Assistant running Music Assistant as an add-on/container.
 - SSH access to Home Assistant **with Docker access** — the [Advanced SSH & Web Terminal](https://github.com/hassio-addons/addon-ssh) add-on works well for this.
 - `docker`, `pip`, `unzip`, and `curl` available in that SSH session.
+- Optional, only if you want `reinject.sh` to also reboot a real Squeezebox (e.g. a UE Radio) test client over SSH: `sshpass`, installed yourself beforehand (`apk add sshpass` on the Home Assistant OS's own Alpine-based SSH session). `reinject.sh` deliberately does **not** install this automatically — it's your call whether to add packages to your own Home Assistant host, not something this script should decide on your behalf. If `sshpass` isn't installed, that reboot step is skipped with a warning; everything else still runs normally.
 
 ## Usage
 
@@ -27,7 +28,12 @@ It works by injecting patched provider files and a patched `aioslimproto` packag
    curl -s "http://192.168.0.241/cgi-bin/main.cgi?ACTION=reboot" > /dev/null
    ```
    Update the IP to your client, or remove the line if you don't need the client rebooted after each run.
-5. Run it:
+5. If you're also testing against a real Squeezebox device (e.g. a UE Radio) on the same network, `reinject.sh` includes a second, separate best-effort step that reboots it over SSH afterward:
+   ```
+   sshpass -p '1234' ssh -oKexAlgorithms=+diffie-hellman-group1-sha1 -oHostKeyAlgorithms=+ssh-rsa -oCiphers=+aes256-cbc -oMACs=+hmac-sha1 root@192.168.0.242 reboot
+   ```
+   Real Squeezebox firmware only offers key-exchange/host-key/cipher/MAC algorithms modern OpenSSH disables by default, which is why those four `-o` overrides are there — adjust them if a different device offers a different set (the error message when connecting without one of these tells you exactly which category and which algorithm it's missing). Update the IP/password to your own device, or remove the step if you don't have one. This step needs `sshpass` (see Requirements above) and is skipped automatically if it's not installed. Note: this device's own SSH server has been observed to report a non-zero/error exit even when the command fully succeeded — if this step prints a warning, check whether the device actually rebooted before assuming it's broken.
+6. Run it:
    ```
    ./reinject.sh
    ```

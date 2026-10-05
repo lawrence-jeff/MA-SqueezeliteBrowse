@@ -123,6 +123,40 @@ echo "=== Reset Test Client==="
 curl -s --max-time 5 "http://192.168.0.241/cgi-bin/main.cgi?ACTION=reboot" > /dev/null \
     || echo "WARNING: could not reach test client at 192.168.0.241 - skipping its reboot, continuing"
 
+echo ""
+echo "=== Reset UE Radio Test Client ==="
+# Real Squeezebox Radio firmware (7.7.3) only offers legacy SSH
+# algorithms (see this project's own README for the full three-flag
+# explanation) and takes a plain reboot over SSH, not an HTTP endpoint
+# like the piCorePlayer client above. Best-effort for the same reason
+# as that one: this project is also used against other test clients
+# that don't have a UE Radio at this address at all.
+#
+# Deliberately does NOT auto-install sshpass (or anything else) even
+# though it's missing - this script runs on other people's Home
+# Assistant hosts via the repo, not just this project's own dev
+# machine, and silently installing packages on someone else's system
+# on their behalf is not this script's call to make. See the README
+# for the one-time manual install this step needs.
+#
+# Real device test confirmed its embedded SSH server reports a
+# non-zero exit even on a fully successful command (connected,
+# authenticated, command ran and produced real output) - so a
+# "FAILED"-sounding warning below doesn't necessarily mean the reboot
+# didn't happen; check whether the device actually went down before
+# assuming this step is broken.
+if command -v sshpass > /dev/null 2>&1; then
+    sshpass -p '1234' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
+        -oKexAlgorithms=+diffie-hellman-group1-sha1 \
+        -oHostKeyAlgorithms=+ssh-rsa \
+        -oCiphers=+aes256-cbc \
+        -oMACs=+hmac-sha1 \
+        root@192.168.0.242 reboot \
+        || echo "WARNING: ssh to UE Radio at 192.168.0.242 reported an error - this device's own SSH server is known to do this even when the reboot actually succeeded, so check the device itself before assuming it failed"
+else
+    echo "WARNING: sshpass not installed - skipping UE Radio reboot (see README for the one-time setup)"
+fi
+
 
 echo ""
 echo "=== Hard restart (direct, not via HA UI - preserves everything we just copied in) ==="

@@ -80,7 +80,19 @@ NOT yet handled (left for later, same as before):
     understands, so that one link is real.
 """
 
-# browselibrary.py v74 | 2026-10-04 | Fixes a real, confirmed cause of
+# browselibrary.py v75 | 2026-10-04 | Fixes the queue-view screen not
+# refreshing after a remove/move/clear (confirmed on BOTH picoreplayer/
+# JiveLite and the UE Radio - a server-side gap, not a client quirk).
+# Root cause, found via a real LMS proxy capture comparing real LMS's
+# own behavior against ours: the real client (Player.lua's own
+# _process_playerstatus) compares "playlist_timestamp" between
+# successive playerstatus pushes to decide whether to refetch its full
+# list - and aioslimproto's own client.py only ever touches that field
+# on playback events (play_url/STMd/STMu), never on a pure queue
+# mutation. _push_queue_update() now bumps it itself before pushing,
+# for every queue-mutating action this file drives (see its own
+# docstring for the full account).
+# (v74 was: Fixes a real, confirmed cause of
 # the UE Radio (real Squeezebox 7.7.3 firmware, not JiveLite) losing
 # audio and crashing several client-side applets after a queue add:
 # _push_queue_update's own "Push 2" sent a positional [player_id,
@@ -971,6 +983,7 @@ import inspect
 import logging
 import re
 import struct
+import time
 import urllib.parse
 import zlib
 from datetime import datetime, timedelta, timezone
@@ -3054,7 +3067,30 @@ class BrowseLibraryHandler:
         request asks for one, so there's nothing a second push was
         uniquely providing that justifies the real risk of getting the
         channel/shape pairing wrong again.
+
+        Bumps player.extra_data["playlist_timestamp"] first (v75) - a
+        real, confirmed gap found via a real LMS proxy capture of
+        picoreplayer/JiveLite: that field (aioslimproto's own client.py)
+        is only ever touched on playback events (play_url, STMd, STMu),
+        never by a pure queue mutation like this file's own delete/move/
+        clear (none of which call play_url or go anywhere near
+        aioslimproto's client state machine). The real client (Player.lua's
+        own _process_playerstatus, confirmed via its own debug log)
+        compares this exact field between successive playerstatus
+        pushes to decide whether to refetch its full list - unchanged
+        means "nothing happened," so a pure removal/move/clear with no
+        accompanying track change left the timestamp stale and the real
+        client never refetched, even though this push itself still
+        landed. add/insert could appear to work anyway, coincidentally,
+        whenever they also triggered enqueue_next_media()'s own
+        play_url() call - a real side effect, not something this file
+        was ever actually relying on by design. Bumping it here,
+        unconditionally, for every queue-mutating action this file
+        drives, is what actually makes the real client treat each one
+        as a genuine change worth refetching.
         """
+        if player := self.provider.slimproto.get_player(player_id):
+            player.extra_data["playlist_timestamp"] = int(time.time())
         cli = self.provider.slimproto.cli
         await cli._on_player_event(
             SlimEvent(type=EventType.PLAYER_UPDATED, player_id=player_id))

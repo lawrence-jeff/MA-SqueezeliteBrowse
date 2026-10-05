@@ -275,8 +275,9 @@ class SqueezelitePlayer(Player):
         # a synced group powers on together the same way it powers off
         # together.
         print(f"[DIAG] play_media: player_id={self.player_id!r} ENTER - "
-              f"self.type={self.type!r} about to power on sync clients "
-              f"(if PROTOCOL)", flush=True)
+              f"self.type={self.type!r} self.client.powered={self.client.powered!r} "
+              f"group_members={self.group_members!r} about to power on sync "
+              f"clients (if PROTOCOL)", flush=True)
         if self.type == PlayerType.PROTOCOL:
 
             async def _power_on(client: SlimClient) -> None:
@@ -827,8 +828,14 @@ class SqueezelitePlayer(Player):
 
         Only used when autoplay=0 for coordinated start of synced players.
         """
+        print(f"[DIAG] _handle_buffer_ready: player_id={self.player_id!r} ENTER "
+              f"synced_to={self.synced_to!r} group_members={self.group_members!r} "
+              f"self.client.powered={self.client.powered!r}", flush=True)
         if self.synced_to:
             # unpause of sync child is handled by sync master
+            print(f"[DIAG] _handle_buffer_ready: player_id={self.player_id!r} "
+                  f"is synced_to={self.synced_to!r}, returning (master handles it)",
+                  flush=True)
             return
         if not self.group_members:
             # not a sync group, continue
@@ -846,15 +853,27 @@ class SqueezelitePlayer(Player):
             if childs_total == childs_ready:
                 break
             count += 1
+        print(f"[DIAG] _handle_buffer_ready: player_id={self.player_id!r} poll done "
+              f"after count={count!r} childs_total={childs_total!r} "
+              f"childs_ready={childs_ready!r} - "
+              f"{'all ready' if childs_total == childs_ready else 'TIMED OUT'}, "
+              f"now pausing+unpausing each sync client", flush=True)
 
         # all child's ready (or timeout) - start play
         async with TaskManager(self.mass) as tg:
-            for sync_client in self._get_sync_clients():
+            for sync_child in self._get_sync_clients():
+                print(f"[DIAG] _handle_buffer_ready: player_id={self.player_id!r} "
+                      f"scheduling pause_and_unpause for "
+                      f"sync_child.player_id={sync_child.player_id!r} "
+                      f"sync_child.powered={sync_child.powered!r} "
+                      f"sync_child.state={sync_child.state!r}", flush=True)
                 # NOTE: Officially you should do an unpause_at based on the player timestamp
                 # but I did not have any good results with that.
                 # Instead just start playback on all players and let the sync logic work out
                 # the delays etc.
-                tg.create_task(pause_and_unpause(sync_client, 200))
+                tg.create_task(pause_and_unpause(sync_child, 200))
+        print(f"[DIAG] _handle_buffer_ready: player_id={self.player_id!r} "
+              f"all pause_and_unpause tasks completed", flush=True)
 
     async def _handle_player_cli_event(self, event: SlimEvent) -> None:
         """Process CLI Event."""
@@ -1055,9 +1074,21 @@ async def pause_and_unpause(slim_client: SlimClient, pause_duration_ms: int) -> 
     This is used instead of pause_for because WiiM devices
     don't properly auto-unpause after pause_for interval.
     """
-    await slim_client.pause()
-    unpause_timestamp = slim_client.jiffies + pause_duration_ms
-    await slim_client.unpause_at(unpause_timestamp)
+    print(f"[DIAG] pause_and_unpause: player_id={slim_client.player_id!r} ENTER "
+          f"state={slim_client.state!r} powered={slim_client.powered!r}", flush=True)
+    try:
+        await slim_client.pause()
+        print(f"[DIAG] pause_and_unpause: player_id={slim_client.player_id!r} "
+              f"pause() done, state={slim_client.state!r}", flush=True)
+        unpause_timestamp = slim_client.jiffies + pause_duration_ms
+        await slim_client.unpause_at(unpause_timestamp)
+        print(f"[DIAG] pause_and_unpause: player_id={slim_client.player_id!r} "
+              f"unpause_at() done, state={slim_client.state!r}", flush=True)
+    except Exception:
+        import traceback
+        print(f"[DIAG] pause_and_unpause: player_id={slim_client.player_id!r} "
+              f"FAILED:\n{traceback.format_exc()}", flush=True)
+        raise
 
 
 async def _patched_send_strm(  # noqa: PLR0913

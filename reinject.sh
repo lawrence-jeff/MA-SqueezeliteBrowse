@@ -145,14 +145,23 @@ echo "=== Reset UE Radio Test Client ==="
 # "FAILED"-sounding warning below doesn't necessarily mean the reboot
 # didn't happen; check whether the device actually went down before
 # assuming this step is broken.
+#
+# `timeout 15` wraps the whole ssh call - NOT optional, found via a
+# real run that hung the entire script indefinitely without it: the
+# device reboot itself succeeded, but the abrupt reboot appears to
+# kill the TCP connection without a clean close/FIN, so the local ssh
+# client just sat waiting forever for a graceful shutdown that was
+# never coming - well past this script's own `docker restart` step
+# ever running. `timeout 15` guarantees this step always ends on its
+# own, successful reboot or not.
 if command -v sshpass > /dev/null 2>&1; then
-    sshpass -p '1234' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
+    timeout 15 sshpass -p '1234' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
         -oKexAlgorithms=+diffie-hellman-group1-sha1 \
         -oHostKeyAlgorithms=+ssh-rsa \
         -oCiphers=+aes256-cbc \
         -oMACs=+hmac-sha1 \
         root@192.168.0.242 reboot \
-        || echo "WARNING: ssh to UE Radio at 192.168.0.242 reported an error - this device's own SSH server is known to do this even when the reboot actually succeeded, so check the device itself before assuming it failed"
+        || echo "WARNING: ssh to UE Radio at 192.168.0.242 reported an error (or timed out after 15s) - this device's own SSH server is known to do this even when the reboot actually succeeded, so check the device itself before assuming it failed"
 else
     echo "WARNING: sshpass not installed - skipping UE Radio reboot (see README for the one-time setup)"
 fi

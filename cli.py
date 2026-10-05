@@ -913,8 +913,37 @@ class SlimProtoCLI:
                 continue
             if len(players) >= limit:
                 break
-            players.append(create_player_item(index, player))
+            item = create_player_item(index, player)
+            item["name"] = self._display_name(player)
+            players.append(item)
         return PlayersResponse(count=len(players), players_loop=players)
+
+    def _display_name(self, player) -> str:
+        """Real player name to show on the device's own screen and in
+
+        serverstatus/players_loop - prefers Music Assistant's own
+        display_name (player.name if the user set a custom one via MA's
+        own UI, else MA's own stored default_name, else the bare
+        player_id - MA's own real display_name property, confirmed via
+        its own source: "always prefer the custom name over the default
+        name") over player.name here (aioslimproto's own SlimClient
+        property, confirmed via its own source to be read-only and
+        sourced purely from the device's own self-reported name at
+        handshake, with no override mechanism of any kind - this
+        project implements no "name" CLI command either, the real
+        mechanism real LMS's own "Squeezebox Name" settings item uses
+        to push a persistent override down to a player). A real device
+        test confirmed the actual, user-visible consequence: renaming a
+        player via MA's own UI had no effect on what the device itself
+        displayed, even across a reboot - because nothing in this
+        project ever read that renamed value in the first place.
+        Falls back to aioslimproto's own player.name when this player
+        isn't resolvable as a real MA player object (e.g. a sync-group
+        member not individually registered) - same value as before,
+        never worse than today's behavior.
+        """
+        mass_player = self.command_handler.mass.players.get_player(player.player_id)
+        return mass_player.display_name if mass_player else player.name
 
     @staticmethod
     def _corrected_elapsed_seconds(player) -> float:
@@ -982,7 +1011,7 @@ class SlimProtoCLI:
             playlist_items.append(player.next_media)
         # base details
         result = {
-            "player_name": player.name,
+            "player_name": self._display_name(player),
             "player_connected": int(player.connected),
             "player_needs_upgrade": 0,
             "player_is_upgrading": 0,
@@ -1174,7 +1203,9 @@ class SlimProtoCLI:
                 continue
             if len(players) > limit:
                 break
-            players.append(create_player_item(start_index + index, player))
+            item = create_player_item(start_index + index, player)
+            item["name"] = self._display_name(player)
+            players.append(item)
         return ServerStatusResponse(
             {
                 "httpport": self.cli_port_json,
@@ -1947,7 +1978,20 @@ def menu_item_from_media_details(
     return details
 
 
-# cli.py patch v4
+# cli.py patch v5
+# v5 fixes player_name/name (status, players, serverstatus) always
+# showing the device's own raw self-reported name (aioslimproto's
+# player.name - read-only, sourced purely from the device's handshake,
+# no override mechanism) regardless of any name set via Music
+# Assistant's own UI. Real device test confirmed the actual symptom: a
+# rename via MA's UI had zero effect on the device's own screen, even
+# across a reboot. Now reads MA's own player.display_name via a new
+# _display_name() helper, falling back to player.name when the player
+# isn't resolvable as a real MA player object - never worse than
+# before. Also: this file still implements no "name" CLI command (the
+# real mechanism real LMS's own "Squeezebox Name" settings item uses
+# to push a persistent rename FROM the device) - out of scope for this
+# fix, which only addresses MA-side renames propagating down.
 # v1 fixed bitrate/samplerate/samplesize being hardcoded to "". v2 added
 # "type". v3 stopped always including these four keys, to fix a real
 # device-confirmed stray "* bits" (Lua treats "" as truthy) - but did

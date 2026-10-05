@@ -88,7 +88,12 @@ docker exec $CONTAINER python3 -c "import music_assistant.providers.squeezelite.
 
 echo ""
 echo "=== Reset Test Client==="
-curl -s "http://192.168.0.241/cgi-bin/main.cgi?ACTION=reboot" > /dev/null
+# Best-effort: an unreachable test client (e.g. when testing against a
+# different device, like the UE Radio, that doesn't need/want a reboot)
+# must not abort the rest of this script under `set -e` - the actual
+# patch deploy (docker restart below) still needs to run either way.
+curl -s --max-time 5 "http://192.168.0.241/cgi-bin/main.cgi?ACTION=reboot" > /dev/null \
+    || echo "WARNING: could not reach test client at 192.168.0.241 - skipping its reboot, continuing"
 
 
 echo ""

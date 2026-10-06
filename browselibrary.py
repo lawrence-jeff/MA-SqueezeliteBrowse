@@ -4010,6 +4010,18 @@ def _resolve_static_icon_path(filename):
         candidate = (STATIC_DIR / candidate_name).resolve()
         if candidate.is_file() and STATIC_DIR in candidate.parents:
             return candidate
+    # No exact size and no unsized master: serve the next size down as-is,
+    # the largest available file smaller than the requested width. Only
+    # applies to sized requests (m is None for unsized names). No resizing.
+    if m:
+        requested = int(m.group("w"))
+        smaller = []
+        for f in STATIC_DIR.glob(f"{base}_*x*_{m.group('mode')}{ext}"):
+            sm = _STATIC_ICON_SUFFIX_RE.match(f.name)
+            if sm and int(sm.group("w")) < requested:
+                smaller.append((int(sm.group("w")), f.resolve()))
+        if smaller:
+            return max(smaller)[1]
     return None
 
 # Matches the size suffix real JiveLite puts on every image path (e.g.

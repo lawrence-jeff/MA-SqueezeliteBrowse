@@ -4,24 +4,32 @@ This patches the [Music Assistant](https://music-assistant.io/) Squeezelite prov
 
 It works by injecting patched provider files and a patched `aioslimproto` package straight into the running `music_assistant` container's Python environment.
 
+## Where the actual code lives
+
+The patched source itself isn't in this repo - it lives in two forks, each on a `ma-squeezelite-browse` branch based on upstream `main`:
+
+- [lawrence-jeff/aioslimproto](https://github.com/lawrence-jeff/aioslimproto/tree/ma-squeezelite-browse) - the `aioslimproto` package.
+- [lawrence-jeff/server](https://github.com/lawrence-jeff/server/tree/ma-squeezelite-browse) - `music_assistant/providers/squeezelite/` (`provider.py`, `browselibrary.py`, `player.py`, and the `static/` menu icons).
+
+This repo holds only `reinject.sh` and this README. `reinject.sh` clones both forks automatically (see Usage below) if they aren't already checked out next to it, so you don't need to do that by hand.
+
+Editing the actual behavior - the browse menus, queue sync, seek, anything in `provider.py`/`browselibrary.py`/`player.py`/`cli.py`/`models.py`/`server.py` - means editing those clones directly, not this repo. `reinject.sh` picks up whatever's currently on disk there each time it runs.
+
 ## How it works
 
-- `provider.py`, `browselibrary.py`, `player.py` — patched Squeezelite provider for Music Assistant, adding a `BrowseLibraryHandler` that serves the Music Assistant library over the Squeezelite/SlimProto protocol.
-- `cli.py`, `models.py`, `server.py` — patched into a clean copy of the `aioslimproto` package (pinned to 3.2.3) to add extra HTTP routes and playlist metadata fixes the browse UI needs.
-- `static/` — the menu icon assets (album art placeholders, artists, playlists, etc.) the browse UI serves to the client.
-- `reinject.sh` — downloads a fresh `aioslimproto` 3.2.3 wheel, copies it and all the patched files into the running Music Assistant container, verifies the patches landed, and restarts the container so they take effect.
+- `reinject.sh` - clones the two forks above if they're missing, copies the whole `aioslimproto` checkout and the three squeezelite provider files (plus `static/`) into the running Music Assistant container, verifies the patches landed, and restarts the container so they take effect.
 
 ## Requirements
 
 - Home Assistant running Music Assistant as an add-on/container.
 - SSH access to Home Assistant **with Docker access** — the [Advanced SSH & Web Terminal](https://github.com/hassio-addons/addon-ssh) add-on works well for this.
-- `docker`, `pip`, `unzip`, and `curl` available in that SSH session.
+- `docker`, `git`, and `curl` available in that SSH session.
 - Optional, only if you want `reinject.sh` to also reboot a real Squeezebox (e.g. a UE Radio) test client over SSH: `sshpass`, installed yourself beforehand (`apk add sshpass` on the Home Assistant OS's own Alpine-based SSH session). `reinject.sh` deliberately does **not** install this automatically — it's your call whether to add packages to your own Home Assistant host, not something this script should decide on your behalf. If `sshpass` isn't installed, that reboot step is skipped with a warning; everything else still runs normally.
 
 ## Usage
 
 1. SSH into Home Assistant using an add-on that gives you Docker access (Advanced SSH & Web Terminal is confirmed to work).
-2. Copy this repo onto that host (e.g. `/config/LMSTest`, which is what `reinject.sh` assumes by default via `SRC`).
+2. Copy this repo onto that host (e.g. `/config/LMSTest`, which is what `reinject.sh` assumes by default). You don't need to do anything with the two forks yourself - the first run of `reinject.sh` clones them to `/config/aioslimproto` and `/config/server` automatically if they aren't there already.
 3. Edit `reinject.sh` and set `CONTAINER` to the name of your Music Assistant container (find it with `docker ps`).
 4. If you're testing against a piCorePlayer client, `reinject.sh` includes a line that reboots it after patching:
    ```
@@ -37,7 +45,7 @@ It works by injecting patched provider files and a patched `aioslimproto` packag
    ```
    ./reinject.sh
    ```
-   This copies the patched files into the container, verifies each patch landed (it fails loudly if a marker is missing), confirms the provider module still imports cleanly, and then restarts the container so Music Assistant picks up the changes.
+   This clones the two forks on first run if needed, copies the patched files into the container, verifies each patch landed (it fails loudly if a marker is missing), confirms the provider module still imports cleanly, and then restarts the container so Music Assistant picks up the changes.
 
 ## Persistence
 

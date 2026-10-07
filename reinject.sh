@@ -4,7 +4,15 @@ set -e
 CONTAINER=app_d5369777_music_assistant
 MA_SLUG=d5369777_music_assistant
 LMS_SLUG=fc57b866_lms
-SRC=/config/LMSTest
+# The working copy of the source lives in the two fork checkouts, not here -
+# this repo now only holds reinject.sh itself and the README. Both checkouts
+# are on their own ma-squeezelite-browse branch, based on upstream main (not
+# the 3.2.3 release aioslimproto is pinned to pre-this-project) - that's
+# deliberate: we want to know if something upstream changes and breaks this,
+# and per-fix PRs branch off main separately anyway, so there's no benefit
+# to the daily dev copy tracking an older release instead.
+ASP_SRC=/config/aioslimproto/aioslimproto
+SQZ_SRC=/config/server/music_assistant/providers/squeezelite
 SQZ_DEST=/app/venv/lib/python3.14/site-packages/music_assistant/providers/squeezelite
 ASP_DEST=/app/venv/lib/python3.14/site-packages/aioslimproto
 
@@ -34,45 +42,53 @@ if ! docker inspect $CONTAINER > /dev/null 2>&1; then
         || { echo "FAILED: $CONTAINER still doesn't exist after restarting MA via Supervisor"; exit 1; }
 fi
 
-echo "=== Downloading aioslimproto 3.2.3 fresh ==="
-mkdir -p $SRC/aioslimproto_323
-cd $SRC/aioslimproto_323
-pip download aioslimproto==3.2.3 --no-deps -d . --no-binary :none: 2>/dev/null || pip download aioslimproto==3.2.3 --no-deps -d .
-unzip -o -q aioslimproto-3.2.3-py3-none-any.whl -d extracted
-cd -
+echo "=== Checking out the two fork branches this depends on (first run only) ==="
+# These are our own forks, set up specifically for this project - cloning
+# them automatically (unlike the sshpass case below, which is a system
+# package on someone else's host) is just finishing the one-time setup a
+# fresh checkout of this repo needs. Shallow + single-branch since we only
+# ever need the current state of ma-squeezelite-browse, not history - the
+# server repo especially is a full MA checkout, no reason to pull all of it.
+if [ ! -f "$ASP_SRC/cli.py" ]; then
+    echo "--- /config/aioslimproto missing or incomplete, cloning ma-squeezelite-browse ---"
+    rm -rf /config/aioslimproto
+    git clone --depth 1 --branch ma-squeezelite-browse --single-branch \
+        https://github.com/lawrence-jeff/aioslimproto.git /config/aioslimproto
+fi
+if [ ! -f "$SQZ_SRC/provider.py" ]; then
+    echo "--- /config/server missing or incomplete, cloning ma-squeezelite-browse ---"
+    rm -rf /config/server
+    git clone --depth 1 --branch ma-squeezelite-browse --single-branch \
+        https://github.com/lawrence-jeff/server.git /config/server
+fi
 
 echo ""
-echo "=== Replacing the ENTIRE aioslimproto package with the fresh 3.2.3 install ==="
+echo "=== Replacing the ENTIRE aioslimproto package with our checkout ==="
 docker exec $CONTAINER rm -rf $ASP_DEST
-docker cp $SRC/aioslimproto_323/extracted/aioslimproto/. $CONTAINER:$ASP_DEST
+docker cp $ASP_SRC/. $CONTAINER:$ASP_DEST
 
 echo ""
-echo "=== Now applying our patches on top of the clean 3.2.3 base ==="
-docker cp $SRC/cli.py    $CONTAINER:$ASP_DEST/cli.py
-docker cp $SRC/models.py    $CONTAINER:$ASP_DEST/models.py
-docker cp $SRC/server.py $CONTAINER:$ASP_DEST/server.py
-docker cp $SRC/provider.py      $CONTAINER:$SQZ_DEST/provider.py
-docker cp $SRC/browselibrary.py $CONTAINER:$SQZ_DEST/browselibrary.py
-docker cp $SRC/player.py $CONTAINER:$SQZ_DEST/player.py
+echo "=== Applying our squeezelite provider files ==="
+docker cp $SQZ_SRC/provider.py      $CONTAINER:$SQZ_DEST/provider.py
+docker cp $SQZ_SRC/browselibrary.py $CONTAINER:$SQZ_DEST/browselibrary.py
+docker cp $SQZ_SRC/player.py        $CONTAINER:$SQZ_DEST/player.py
 
 # Real chrome icon files (browselibrary.py's STATIC_DIR = Path(__file__).parent
 # / "static" - so this has to land as $SQZ_DEST/static, a sibling of
 # browselibrary.py in the container, not anywhere else). This is a
 # directory copy, not a single file - checked explicitly first since an
-# empty/missing $SRC/static is an easy thing to forget locally (nothing
-# about editing browselibrary.py's Python would remind you), and
-# browselibrary.py's own fallback (the solid-color placeholder) would
-# otherwise mask the mistake rather than erroring - you'd just see
-# placeholders again and have to guess why.
-if [ ! -d "$SRC/static" ] || [ -z "$(ls -A "$SRC/static" 2>/dev/null)" ]; then
-    echo "FAILED: $SRC/static is missing or empty - populate it with the real"
+# empty/missing $SQZ_SRC/static would otherwise be masked by
+# browselibrary.py's own fallback (the solid-color placeholder) rather than
+# erroring - you'd just see placeholders again and have to guess why.
+if [ ! -d "$SQZ_SRC/static" ] || [ -z "$(ls -A "$SQZ_SRC/static" 2>/dev/null)" ]; then
+    echo "FAILED: $SQZ_SRC/static is missing or empty - populate it with the real"
     echo "        chrome icon files, one per menu tile (AlbumArtists_225x225_m.png,"
     echo "        AllArtists_225x225_m.png, Albums_225x225_m.png) before running"
     echo "        this script."
     exit 1
 fi
 # Trailing "/." on the source - same convention already used above for
-# the aioslimproto extraction - copies the CONTENTS of $SRC/static into
+# the aioslimproto copy - copies the CONTENTS of $SQZ_SRC/static into
 # $SQZ_DEST/static, regardless of whether that directory already exists in
 # the container. Without it, docker cp's behavior depends on whether the
 # destination already exists: if music_assistant/providers/squeezelite/
@@ -83,7 +99,7 @@ fi
 # for it, which is exactly the kind of silent-looking failure this
 # project tries to avoid.
 docker exec $CONTAINER mkdir -p $SQZ_DEST/static
-docker cp $SRC/static/. $CONTAINER:$SQZ_DEST/static
+docker cp $SQZ_SRC/static/. $CONTAINER:$SQZ_DEST/static
 echo "--- contents of \$SQZ_DEST/static in the container right after copy: ---"
 docker exec $CONTAINER ls -la $SQZ_DEST/static
 echo "--- (end of listing) ---"

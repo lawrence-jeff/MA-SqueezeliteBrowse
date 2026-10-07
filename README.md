@@ -2,7 +2,12 @@
 
 This patches the [Music Assistant](https://music-assistant.io/) Squeezelite provider so a Squeezelite client (e.g. a Logitech Media Server-style client, or [piCorePlayer](https://www.picoreplayer.org/)) can **browse the Music Assistant media library directly from the client**, instead of only playing whatever Music Assistant pushes to it.
 
-Browsing isn't the only thing it changes - it also fixes a number of existing issues with how the stock provider pushes content to the client, including seek, stream/track detail display, keeping the client's shuffle/repeat buttons in sync with Music Assistant, and keeping the client's queue display and track management (add/remove/reorder) in sync with the server.
+Browsing isn't the only thing it changes. It also fixes a number of existing issues with how the stock provider pushes content to the client:
+
+- Seek
+- Stream/track detail display
+- Shuffle/repeat button sync with Music Assistant
+- Queue display and track management (add/remove/reorder) sync with the server
 
 It works by injecting patched provider files and a patched `aioslimproto` package straight into the running `music_assistant` container's Python environment.
 

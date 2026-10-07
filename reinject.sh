@@ -11,8 +11,8 @@ LMS_SLUG=fc57b866_lms
 # deliberate: we want to know if something upstream changes and breaks this,
 # and per-fix PRs branch off main separately anyway, so there's no benefit
 # to the daily dev copy tracking an older release instead.
-ASP_SRC=/config/aioslimproto/aioslimproto
-SQZ_SRC=/config/server/music_assistant/providers/squeezelite
+ASP_SRC=/config/ma-squeezelite-browse/aioslimproto/aioslimproto
+SQZ_SRC=/config/ma-squeezelite-browse/server/music_assistant/providers/squeezelite
 SQZ_DEST=/app/venv/lib/python3.14/site-packages/music_assistant/providers/squeezelite
 ASP_DEST=/app/venv/lib/python3.14/site-packages/aioslimproto
 
@@ -50,22 +50,51 @@ echo "=== Checking out the two fork branches this depends on (first run only) ==
 # ever need the current state of ma-squeezelite-browse, not history - the
 # server repo especially is a full MA checkout, no reason to pull all of it.
 if [ ! -f "$ASP_SRC/cli.py" ]; then
-    echo "--- /config/aioslimproto missing or incomplete, cloning ma-squeezelite-browse ---"
-    rm -rf /config/aioslimproto
+    echo "--- /config/ma-squeezelite-browse/aioslimproto missing or incomplete, cloning ma-squeezelite-browse ---"
+    rm -rf /config/ma-squeezelite-browse/aioslimproto
     git clone --depth 1 --branch ma-squeezelite-browse --single-branch \
-        https://github.com/lawrence-jeff/aioslimproto.git /config/aioslimproto
+        https://github.com/lawrence-jeff/aioslimproto.git /config/ma-squeezelite-browse/aioslimproto
 fi
 if [ ! -f "$SQZ_SRC/provider.py" ]; then
-    echo "--- /config/server missing or incomplete, cloning ma-squeezelite-browse ---"
-    rm -rf /config/server
+    echo "--- /config/ma-squeezelite-browse/server missing or incomplete, cloning ma-squeezelite-browse ---"
+    rm -rf /config/ma-squeezelite-browse/server
     git clone --depth 1 --branch ma-squeezelite-browse --single-branch \
-        https://github.com/lawrence-jeff/server.git /config/server
+        https://github.com/lawrence-jeff/server.git /config/ma-squeezelite-browse/server
 fi
 
 echo ""
-echo "=== Replacing the ENTIRE aioslimproto package with our checkout ==="
-docker exec $CONTAINER rm -rf $ASP_DEST
-docker cp $ASP_SRC/. $CONTAINER:$ASP_DEST
+echo "=== Checking MA's bundled aioslimproto version (need >= 3.2.3) ==="
+# Our cli.py/models.py/server.py track upstream main, which has real,
+# confirmed drift in the OTHER aioslimproto files (client.py especially)
+# versus the 3.2.3 release - checked directly via a real diff, not
+# assumed. That's fine for MA >= 2.10.5, whose own squeezelite provider
+# already requires aioslimproto==3.2.3 (confirmed directly against a
+# stock container run of that image, not assumed) - this exact
+# combination is what's actually been tested against real devices this
+# whole project. An older MA could still be bundling something below
+# that (this project's own history: the full-package-replace this step
+# used to do was built specifically because MA's default was 3.2.1 at
+# the time), which this patch set has never been tested against - so
+# fail loudly here instead of silently overlaying onto an unknown base.
+docker exec $CONTAINER python3 -c "
+import importlib.metadata as m
+import sys
+v = tuple(int(x) for x in m.version('aioslimproto').split('.')[:3])
+print('Installed aioslimproto: ' + '.'.join(str(x) for x in v))
+sys.exit(0 if v >= (3, 2, 3) else 1)
+" || { echo "FAILED: MA's bundled aioslimproto is older than 3.2.3 - update Music Assistant to at least 2.10.5 first (see README)"; exit 1; }
+
+echo ""
+echo "=== Applying our aioslimproto patches on top of MA's own bundled copy ==="
+# Just overlay the files we actually patch - no need to download or
+# replace the whole package. This exact combination (our cli.py/models.py/
+# server.py, tracking upstream main, layered over MA's stock 3.2.3 for
+# everything else) is what's actually
+# been tested against real devices (UE Radio, picoreplayer) this whole
+# project - not a new, unverified combination.
+docker cp $ASP_SRC/cli.py    $CONTAINER:$ASP_DEST/cli.py
+docker cp $ASP_SRC/models.py $CONTAINER:$ASP_DEST/models.py
+docker cp $ASP_SRC/server.py $CONTAINER:$ASP_DEST/server.py
 
 echo ""
 echo "=== Applying our squeezelite provider files ==="

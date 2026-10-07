@@ -11,7 +11,7 @@ The patched source itself isn't in this repo - it lives in two forks, each on a 
 - [lawrence-jeff/aioslimproto](https://github.com/lawrence-jeff/aioslimproto/tree/ma-squeezelite-browse) - the `aioslimproto` package.
 - [lawrence-jeff/server](https://github.com/lawrence-jeff/server/tree/ma-squeezelite-browse) - `music_assistant/providers/squeezelite/` (`provider.py`, `browselibrary.py`, `player.py`, and the `static/` menu icons).
 
-This repo holds only `reinject.sh` and this README. `reinject.sh` clones both forks automatically (see Usage below) if they aren't already checked out next to it, so you don't need to do that by hand.
+This repo holds only `reinject.sh` and this README, living in a directory named `ma-squeezelite-browse` (matching the branch name both forks use) rather than a project-specific name of its own. `reinject.sh` clones both forks automatically into subdirectories of that same folder (see Usage below) if they aren't already checked out there, so you don't need to do that by hand.
 
 Editing the actual behavior - the browse menus, queue sync, seek, anything in `provider.py`/`browselibrary.py`/`player.py`/`cli.py`/`models.py`/`server.py` - means editing those clones directly, not this repo. `reinject.sh` picks up whatever's currently on disk there each time it runs.
 
@@ -21,15 +21,17 @@ Editing the actual behavior - the browse menus, queue sync, seek, anything in `p
 
 ## Requirements
 
+- Music Assistant **2.10.5 or later**. That's the version this project has confirmed ships `aioslimproto==3.2.3` by default (checked directly against a stock container, not assumed) - our patched `cli.py`/`models.py`/`server.py` track upstream `aioslimproto` `main`, which has real, confirmed differences from 3.2.3 in the files we don't overlay (`client.py` especially), so an older MA bundling something below 3.2.3 is a combination this project has never tested. `reinject.sh` checks the installed version itself and fails loudly rather than silently overlaying onto an unknown base.
 - Home Assistant running Music Assistant as an add-on/container.
 - SSH access to Home Assistant **with Docker access** — the [Advanced SSH & Web Terminal](https://github.com/hassio-addons/addon-ssh) add-on works well for this.
 - `docker`, `git`, and `curl` available in that SSH session.
+- A writable `/config` directory with enough free space to hold a shallow clone of both forks. `aioslimproto` is small, but `server` is a full Music Assistant checkout with some vendored binaries and model files in it - likely several hundred MB even with the `--depth 1` shallow clone `reinject.sh` uses, so budget for that rather than assuming it's a few MB.
 - Optional, only if you want `reinject.sh` to also reboot a real Squeezebox (e.g. a UE Radio) test client over SSH: `sshpass`, installed yourself beforehand (`apk add sshpass` on the Home Assistant OS's own Alpine-based SSH session). `reinject.sh` deliberately does **not** install this automatically — it's your call whether to add packages to your own Home Assistant host, not something this script should decide on your behalf. If `sshpass` isn't installed, that reboot step is skipped with a warning; everything else still runs normally.
 
 ## Usage
 
 1. SSH into Home Assistant using an add-on that gives you Docker access (Advanced SSH & Web Terminal is confirmed to work).
-2. Copy this repo onto that host (e.g. `/config/LMSTest`, which is what `reinject.sh` assumes by default). You don't need to do anything with the two forks yourself - the first run of `reinject.sh` clones them to `/config/aioslimproto` and `/config/server` automatically if they aren't there already.
+2. Copy this repo onto that host as `/config/ma-squeezelite-browse`, which is what `reinject.sh` assumes by default. You don't need to do anything with the two forks yourself - the first run of `reinject.sh` clones them into `/config/ma-squeezelite-browse/aioslimproto` and `/config/ma-squeezelite-browse/server` automatically if they aren't there already.
 3. Edit `reinject.sh` and set `CONTAINER` to the name of your Music Assistant container (find it with `docker ps`).
 4. If you're testing against a piCorePlayer client, `reinject.sh` includes a line that reboots it after patching:
    ```

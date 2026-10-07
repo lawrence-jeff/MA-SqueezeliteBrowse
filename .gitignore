@@ -1,3 +1,7 @@
+# reinject.sh clones these here itself - not part of this repo
+/aioslimproto/
+/server/
+
 aioslimproto_323/
 
 # Byte-compiled / optimized / DLL files

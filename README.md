@@ -4,6 +4,8 @@ This patches the [Music Assistant](https://music-assistant.io/) Squeezelite prov
 
 It works by injecting patched provider files and a patched `aioslimproto` package straight into the running `music_assistant` container's Python environment.
 
+The intent is to let you quickly test these changes against your own real Music Assistant setup and real Squeezebox-style clients, without needing a full Music Assistant development environment. If you'd rather develop that way - editing the real source, running the test suite, etc. - use the forked repositories directly (see below). This script is for the "I just want to try it" path: from a stock Home Assistant host with Music Assistant already running, you can be testing in a few minutes.
+
 ## Where the actual code lives
 
 The patched source itself isn't in this repo - it lives in two forks, each on a `ma-squeezelite-browse` branch based on upstream `main`:

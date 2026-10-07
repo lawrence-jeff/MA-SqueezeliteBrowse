@@ -1000,6 +1000,7 @@ from aiohttp import web
 # current_media/next_media.
 from aioslimproto.cli import menu_item_from_media_details
 from aioslimproto.models import EventType, MediaDetails, SlimEvent
+from music_assistant.controllers.player_queues.helpers import committed_index
 from music_assistant_models.enums import ImageType, MediaType, PlaybackState, QueueOption
 from music_assistant_models.errors import MediaNotFoundError
 
@@ -3244,6 +3245,11 @@ class BrowseLibraryHandler:
             resuming a paused current track is still a meaningful
             action, so only PlaybackState.PLAYING (not PAUSED) skips
             this.
+
+        Text and order deliberately diverge from the real LMS pcap above
+        as of this change - "Play Now"/"Play Next"/"Delete item", in
+        that order, to match the MA app's own UI instead. Commands are
+        unchanged.
         """
         kwargs = slim_command.kwargs
         player_id = slim_command.player_id
@@ -3279,12 +3285,25 @@ class BrowseLibraryHandler:
                 row["style"] = style
             return row
 
-        item_loop = [_row("Remove from playlist", ["playlist", "delete", str(playlist_index)])]
-        if playlist_index not in (current_index, current_index + 1):
-            item_loop.append(_row("Play Next", ["playlist", "move", str(playlist_index)]))
+        # Order and text match MA's own UI: Play Now, Play Next, Delete item.
+        item_loop = []
         if not is_current_and_playing:
             item_loop.append(
-                _row("Play", ["playlist", "jump", str(playlist_index)], style="itemplay"))
+                _row("Play Now", ["playlist", "jump", str(playlist_index)], style="itemplay"))
+        if playlist_index not in (current_index, current_index + 1):
+            item_loop.append(_row("Play Next", ["playlist", "move", str(playlist_index)]))
+        # Real, confirmed via MA's own delete_item(): it silently no-ops (just a log
+        # warning, no error) for any index at or before committed_index() - the player
+        # already owns that item (currently playing, or handed over for the gapless
+        # transition) and nothing below that boundary can be reordered. A real device
+        # test found this blocks "Remove from playlist" on every row before the
+        # current track, not just the current one, which the MA app's own UI confirms
+        # is deliberate (the same rows are greyed out there too) - so this matches
+        # delete_item's exact guard, rather than offering an action proven to no-op.
+        boundary_index = committed_index(queue) if queue.index_in_buffer is not None else None
+        if boundary_index is None or playlist_index > boundary_index:
+            item_loop.append(
+                _row("Delete item", ["playlist", "delete", str(playlist_index)]))
 
         print(f"[BL] contextmenu: queue menu for player_id={player_id!r} "
               f"playlist_index={playlist_index!r} current_index={current_index!r} "
@@ -3671,7 +3690,10 @@ class BrowseLibraryHandler:
                     # rendering, before JiveLite ever got far enough to
                     # send anything. Removed to match the real shape
                     # exactly rather than guess again.
-                    "text": "Clear Playlist",
+                    # "Clear queue" (not "Clear Playlist") - deliberate
+                    # text change to match the MA app's own wording.
+                    # Command/shape otherwise unchanged from real LMS.
+                    "text": "Clear queue",
                     "icon": "html/images/playlistclear.png",
                     "count": 2,
                     "offset": 0,
@@ -3682,7 +3704,7 @@ class BrowseLibraryHandler:
                             "nextWindow": "parent",
                         },
                         {
-                            "text": "Clear Playlist",
+                            "text": "Clear queue",
                             "actions": {"do": {"player": 0, "cmd": ["playlist", "clear"]}},
                             "nextWindow": "home",
                         },
@@ -3837,6 +3859,15 @@ class BrowseLibraryHandler:
                 },
             )
             row = menu_item_from_media_details(media_details, include_actions=False)
+            # Two-line "text" (same documented SlimBrowse \n convention
+            # already used by get_tracks()/get_albums() above) - the
+            # built-in menu_item_from_media_details() sets "text" to the
+            # bare title only, which is why the queue view showed one
+            # line instead of real LMS's two. Falls back to the bare
+            # title when a queue item genuinely has no artist, same as
+            # the other two call sites.
+            if artist:
+                row["text"] = f"{queue_item.name}\n{artist}"
             # Real, pcap-confirmed row shape (a real LMS 9.1.1 queue-view
             # capture, not inferred): a queue row carries NO "actions"
             # field at all - not go, not add, not more, nothing - just

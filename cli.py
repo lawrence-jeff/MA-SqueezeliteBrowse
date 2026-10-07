@@ -1688,6 +1688,8 @@ class SlimProtoCLI:
     ) -> None:
         """Push a real LMS "showBriefly" text/artwork popup - either the
 
+        KNOWN GAP: doesn't fire for MA-driven queue changes, only device-initiated ones - left as-is, too complex to fix cleanly.
+
         "mixed" kind (e.g. the "Adding" / "to play next..." confirmation
         with a badge and cover art shown when adding a track or album to
         the queue) or the "song" kind (the "Now Playing" + track title

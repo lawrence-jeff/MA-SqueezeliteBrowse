@@ -70,3 +70,7 @@ The patch is applied directly to the container's filesystem, so it survives a pl
 - Updating Music Assistant to a new version/image.
 
 Either of those resets the container back to the stock image, so you'll need to run `reinject.sh` again afterward.
+
+## Reporting issues
+
+Please open issues in **this repo**, not the forked `aioslimproto`/`server` repos - even if the bug turns out to live in one of them. That lets them stay triaged in one place; the right fork gets fixed from there.

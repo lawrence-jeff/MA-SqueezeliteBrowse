@@ -1,9 +1,28 @@
 #!/bin/bash
 set -e
 
-CONTAINER=app_d5369777_music_assistant
-MA_SLUG=d5369777_music_assistant
-LMS_SLUG=fc57b866_lms
+# Auto-detect the Music Assistant container - no need to find/edit this
+# yourself. docker ps -a (not just ps) so this still finds it if it's
+# merely stopped, not destroyed outright (see the recovery block below
+# for the one case this can't help with). If you have more than one
+# container with "music_assistant" in its name, this takes the first
+# match - set CONTAINER yourself above this line if that's wrong for you.
+CONTAINER=$(docker ps -a --format '{{.Names}}' | grep -m1 music_assistant || true)
+
+# Fallback used only when no container matching "music_assistant" exists
+# at all - including in `docker ps -a` - which happens specifically when
+# Supervisor has torn the container down entirely (see the recovery block
+# below). Detection can't find a name that doesn't exist anywhere, so
+# Supervisor needs *some* name to recreate - this is this project's own
+# dev host's container name; override it here if yours differs and you
+# hit this exact edge case on a from-scratch host.
+if [ -z "$CONTAINER" ]; then
+    CONTAINER=app_d5369777_music_assistant
+    echo "=== No music_assistant container found at all (even stopped) - probably torn down by Supervisor; attempting recovery as $CONTAINER ==="
+fi
+MA_SLUG=${CONTAINER#app_}
+echo "=== Using Music Assistant container: $CONTAINER ==="
+
 # The real dev checkouts (full git history, tests, etc. - several hundred MB)
 # live only on whatever machine you actually develop on, never under /config -
 # a full clone there would get swept into Home Assistant's own backups for no
@@ -87,7 +106,15 @@ fetch_staged_files() {
 # raw docker, once it's gone), then wait for the container to actually
 # exist before continuing.
 if ! docker inspect $CONTAINER > /dev/null 2>&1; then
-    echo "=== $CONTAINER is gone (not just stopped) - stopping real LMS and restarting MA via Supervisor ==="
+    echo "=== $CONTAINER is gone (not just stopped) - stopping real LMS (if present) and restarting MA via Supervisor ==="
+    # Best-effort and auto-detected the same way as MA above - most setups
+    # won't have a competing real-LMS add-on at all, which is fine; this
+    # is just a courtesy for the specific case of this project's own test
+    # rig (LMS and MA fighting over the same ports can crash MA's container
+    # outright). Falls back to this dev host's own LMS container name only
+    # if nothing matching "_lms" exists at all.
+    LMS_CONTAINER=$(docker ps -a --format '{{.Names}}' | grep -m1 -i '_lms$' || echo "app_fc57b866_lms")
+    LMS_SLUG=${LMS_CONTAINER#app_}
     docker exec hassio_cli ha apps stop $LMS_SLUG 2>&1 || true
     docker exec hassio_cli ha apps start $MA_SLUG 2>&1
     echo "=== Waiting for $CONTAINER to come back up ==="

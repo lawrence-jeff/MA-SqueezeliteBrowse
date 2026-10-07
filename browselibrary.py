@@ -4226,6 +4226,15 @@ def _placeholder_response(color_key):
     )
 
 
+async def handle_root_redirect(request: web.Request) -> web.Response:
+    """Redirect a plain GET on the CLI web port to the Music Assistant web UI.
+
+    Picoreplayers link to the LMS web port (9000) from their settings page; this
+    sends that link to the Music Assistant UI on the same host instead of an error.
+    """
+    raise web.HTTPFound(f"http://{request.url.host}:8095/")
+
+
 def make_icon_routes(mass):
     """Build the handle_icon/handle_unmatched closures bound to `mass`.
 

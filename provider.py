@@ -17,7 +17,7 @@ from music_assistant.constants import CONF_PORT, CONF_SYNC_ADJUST, VERBOSE_LOG_L
 from music_assistant.helpers.audio import get_mime_type
 from music_assistant.helpers.util import is_port_in_use
 from music_assistant.models.player_provider import PlayerProvider
-from .browselibrary import BrowseLibraryHandler, make_icon_routes
+from .browselibrary import BrowseLibraryHandler, handle_root_redirect, make_icon_routes
 
 from .constants import (
     CONF_CLI_JSON_PORT,
@@ -112,6 +112,9 @@ class SqueezelitePlayerProvider(PlayerProvider):
             control_port=control_port,
 	    cli_command_handler=BrowseLibraryHandler(self),
             extra_routes={
+                # Plain GET on the CLI web port (e.g. the link on a piCorePlayer's
+                # LMS settings page) goes to the Music Assistant web UI instead.
+                "/": handle_root_redirect,
                 "/html/images/{filename}": icon_handler,
                 "/music/{icon_id}/{filename}": icon_handler,
                 # Lowest priority - only reached if nothing above matches.

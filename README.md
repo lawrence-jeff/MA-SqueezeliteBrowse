@@ -21,7 +21,7 @@ This repo holds only `reinject.sh` and this README. `reinject.sh` downloads the 
 
 ## Requirements
 
-- Music Assistant **2.10.5 or later**. That's the version this project has confirmed ships `aioslimproto==3.2.3` by default (checked directly against a stock container, not assumed) - our patched `cli.py`/`models.py`/`server.py` track upstream `aioslimproto` `main`, which has real, confirmed differences from 3.2.3 in the files we don't overlay (`client.py` especially), so an older MA bundling something below 3.2.3 is a combination this project has never tested. `reinject.sh` checks the installed version itself and fails loudly rather than silently overlaying onto an unknown base.
+- Music Assistant **2.10.5 or later**, due to a dependency on `aioslimproto` 3.2.3.
 - Home Assistant running Music Assistant as an add-on/container.
 - SSH access to Home Assistant **with Docker access** — the [Advanced SSH & Web Terminal](https://github.com/hassio-addons/addon-ssh) add-on works well for this.
 - `docker` and `curl` available in that SSH session.

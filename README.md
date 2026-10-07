@@ -35,14 +35,13 @@ Editing the actual behavior - the browse menus, queue sync, seek, anything in `p
 **If you just want to run this, no development:**
 
 1. SSH into Home Assistant using an add-on that gives you Docker access (Advanced SSH & Web Terminal is confirmed to work).
-2. Download `reinject.sh` into `/config/ma-squeezelite-browse`:
+2. Download `reinject.sh` (it uses absolute paths throughout, so it doesn't matter where you put it - your home directory is fine):
    ```
-   mkdir -p /config/ma-squeezelite-browse && cd /config/ma-squeezelite-browse
    curl -fsSL https://raw.githubusercontent.com/lawrence-jeff/MA-SqueezeliteBrowse/main/reinject.sh -o reinject.sh
    chmod +x reinject.sh
    ```
 3. Edit it and set `CONTAINER` to the name of your Music Assistant container (find it with `docker ps`).
-4. Run it: `./reinject.sh`. On first run, since nothing's staged yet, it downloads the patched files itself straight from the `ma-squeezelite-browse` branch of the two forks (no git, no full clone - see "Where the actual code lives" above) into `/config/ma-squeezelite-browse/{aioslimproto,server}`, then injects them.
+4. Run it: `./reinject.sh`. On first run, since nothing's staged yet, it creates `/config/ma-squeezelite-browse` itself and downloads the patched files straight into it from the `ma-squeezelite-browse` branch of the two forks (no git, no full clone - see "Where the actual code lives" above), then injects them.
 5. Run `./reinject.sh -update` any time later to re-download and pick up newer patches. Plain `./reinject.sh` never re-downloads on its own - once the files are staged, it just injects whatever's already there.
 
 **If you're developing changes yourself:**

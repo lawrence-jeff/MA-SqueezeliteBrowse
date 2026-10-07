@@ -1,6 +1,9 @@
-# reinject.sh clones these here itself - not part of this repo
+# Staged patch files, copied in by hand from the real fork checkouts on your
+# own dev machine (not under /config) - not part of this repo, see README.
 /aioslimproto/
 /server/
+/aioslimproto-staged/
+/server-staged/
 
 aioslimproto_323/
 

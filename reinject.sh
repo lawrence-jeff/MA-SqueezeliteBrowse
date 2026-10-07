@@ -4,17 +4,74 @@ set -e
 CONTAINER=app_d5369777_music_assistant
 MA_SLUG=d5369777_music_assistant
 LMS_SLUG=fc57b866_lms
-# The working copy of the source lives in the two fork checkouts, not here -
-# this repo now only holds reinject.sh itself and the README. Both checkouts
-# are on their own ma-squeezelite-browse branch, based on upstream main (not
-# the 3.2.3 release aioslimproto is pinned to pre-this-project) - that's
-# deliberate: we want to know if something upstream changes and breaks this,
-# and per-fix PRs branch off main separately anyway, so there's no benefit
-# to the daily dev copy tracking an older release instead.
-ASP_SRC=/config/ma-squeezelite-browse/aioslimproto/aioslimproto
-SQZ_SRC=/config/ma-squeezelite-browse/server/music_assistant/providers/squeezelite
+# The real dev checkouts (full git history, tests, etc. - several hundred MB)
+# live only on whatever machine you actually develop on, never under /config -
+# a full clone there would get swept into Home Assistant's own backups for no
+# reason. This script only ever needs the small handful of patched files
+# below. If you're developing yourself, stage them here however you like
+# (drag-and-drop onto the /config network share, rsync, robocopy). If you
+# just want to run this against a stock Music Assistant without doing any
+# development, don't stage anything - the first run below downloads these
+# same files straight from the ma-squeezelite-browse branch of the two forks
+# (no git, no full clone) so SSH+this script is all you need.
+ASP_SRC=/config/ma-squeezelite-browse/aioslimproto
+SQZ_SRC=/config/ma-squeezelite-browse/server
 SQZ_DEST=/app/venv/lib/python3.14/site-packages/music_assistant/providers/squeezelite
 ASP_DEST=/app/venv/lib/python3.14/site-packages/aioslimproto
+
+# -update re-downloads the staged files from the forks even if they're
+# already present, overwriting whatever's currently staged - for someone
+# who isn't developing locally and just wants to pick up the latest patch
+# set. Without it, once the files are staged (downloaded or by hand),
+# plain `./reinject.sh` never touches them again - it just injects
+# whatever's already there, which is what a dev iterating locally wants.
+FORCE_UPDATE=false
+if [ "$1" = "-update" ]; then
+    FORCE_UPDATE=true
+fi
+
+ASP_RAW_BASE=https://raw.githubusercontent.com/lawrence-jeff/aioslimproto/ma-squeezelite-browse/aioslimproto
+SQZ_RAW_BASE=https://raw.githubusercontent.com/lawrence-jeff/server/ma-squeezelite-browse/music_assistant/providers/squeezelite
+# Hardcoded rather than listed dynamically via the GitHub API - avoids a
+# second kind of network call (API, not just raw-content fetches), its
+# separate rate limit, and a jq/API-JSON-parsing dependency this script
+# otherwise doesn't need. Downside: if a new icon is ever added to static/
+# upstream, it has to be added to this list too, by hand, or -update won't
+# fetch it.
+SQZ_STATIC_FILES="
+AlbumArtists_100x100_m.png AlbumArtists_225x225_m.png AlbumArtists_40x40_m.png AlbumArtists_41x41_m.png
+Albums_100x100_m.png Albums_225x225_m.png Albums_40x40_m.png Albums_41x41_m.png
+AllArtists_100x100_m.png AllArtists_225x225_m.png AllArtists_40x40_m.png AllArtists_41x41_m.png
+AudioBooks.png AudioBooks_100x100_m.png AudioBooks_225x225_m.png AudioBooks_40x40_m.png AudioBooks_41x41_m.png
+Playlists_100x100_m.png Playlists_225x225_m.png Playlists_40x40_m.png Playlists_41x41_m.png
+browselibrary.png
+favorites_100x100_m.png favorites_225x225_m.png favorites_40x40_m.png favorites_41x41_m.png
+icon_favorites_remote.png icon_internet_radio_remote.png icon_ml_playlist_remote.png
+playlistclear.png playlistclear_100x100_m.png playlistclear_225x225_m.png playlistclear_40x40_m.png playlistclear_41x41_m.png
+playlists.png
+podcasts_100x100_m.png podcasts_225x225_m.png podcasts_40x40_m.png podcasts_41x41_m.png
+radio.png
+radiolocal_100x100_m.png radiolocal_225x225_m.png radiolocal_40x40_m.png radiolocal_41x41_m.png
+radiosearch_100x100_m.png radiosearch_225x225_m.png radiosearch_41x41_m.png
+"
+
+fetch_staged_files() {
+    echo "--- downloading patch files from the ma-squeezelite-browse branches (lawrence-jeff/aioslimproto, lawrence-jeff/server) ---"
+    mkdir -p "$ASP_SRC" "$SQZ_SRC/static"
+    for f in cli.py models.py server.py; do
+        curl -fsSL "$ASP_RAW_BASE/$f" -o "$ASP_SRC/$f" \
+            || { echo "FAILED: could not download $ASP_RAW_BASE/$f"; exit 1; }
+    done
+    for f in provider.py browselibrary.py player.py; do
+        curl -fsSL "$SQZ_RAW_BASE/$f" -o "$SQZ_SRC/$f" \
+            || { echo "FAILED: could not download $SQZ_RAW_BASE/$f"; exit 1; }
+    done
+    for f in $SQZ_STATIC_FILES; do
+        curl -fsSL "$SQZ_RAW_BASE/static/$f" -o "$SQZ_SRC/static/$f" \
+            || { echo "FAILED: could not download $SQZ_RAW_BASE/static/$f"; exit 1; }
+    done
+    echo "--- download complete ---"
+}
 
 # Real LMS (run manually for proxy-capture comparisons against our own
 # server - see the project's own notes on that) and MA both want the
@@ -42,24 +99,15 @@ if ! docker inspect $CONTAINER > /dev/null 2>&1; then
         || { echo "FAILED: $CONTAINER still doesn't exist after restarting MA via Supervisor"; exit 1; }
 fi
 
-echo "=== Checking out the two fork branches this depends on (first run only) ==="
-# These are our own forks, set up specifically for this project - cloning
-# them automatically (unlike the sshpass case below, which is a system
-# package on someone else's host) is just finishing the one-time setup a
-# fresh checkout of this repo needs. Shallow + single-branch since we only
-# ever need the current state of ma-squeezelite-browse, not history - the
-# server repo especially is a full MA checkout, no reason to pull all of it.
-if [ ! -f "$ASP_SRC/cli.py" ]; then
-    echo "--- /config/ma-squeezelite-browse/aioslimproto missing or incomplete, cloning ma-squeezelite-browse ---"
-    rm -rf /config/ma-squeezelite-browse/aioslimproto
-    git clone --depth 1 --branch ma-squeezelite-browse --single-branch \
-        https://github.com/lawrence-jeff/aioslimproto.git /config/ma-squeezelite-browse/aioslimproto
-fi
-if [ ! -f "$SQZ_SRC/provider.py" ]; then
-    echo "--- /config/ma-squeezelite-browse/server missing or incomplete, cloning ma-squeezelite-browse ---"
-    rm -rf /config/ma-squeezelite-browse/server
-    git clone --depth 1 --branch ma-squeezelite-browse --single-branch \
-        https://github.com/lawrence-jeff/server.git /config/ma-squeezelite-browse/server
+echo "=== Checking the staged patch files are present ==="
+if $FORCE_UPDATE; then
+    echo "--- -update passed: re-downloading, overwriting whatever's currently staged ---"
+    fetch_staged_files
+elif [ ! -f "$ASP_SRC/cli.py" ] || [ ! -f "$SQZ_SRC/provider.py" ]; then
+    echo "--- staged files missing - this looks like a first run, downloading them ---"
+    fetch_staged_files
+else
+    echo "--- staged files already present, using them as-is (pass -update to refresh) ---"
 fi
 
 echo ""

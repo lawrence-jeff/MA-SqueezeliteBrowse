@@ -24,6 +24,7 @@ from .constants import (
     CONF_CLI_TELNET_PORT,
     CONF_DISCOVERY,
     DEFAULT_SLIMPROTO_PORT,
+    REPEATMODE_MAP,
 )
 from .player import SqueezelitePlayer
 
@@ -152,16 +153,25 @@ class SqueezelitePlayerProvider(PlayerProvider):
         # deletions made from the MA app) confirmed this is a real,
         # observable symptom - not just a theoretical gap - the connected
         # SlimProto client's queue-view screen never refreshed because
-        # nothing ever told it to. QUEUE_ITEMS_UPDATED (confirmed via the
-        # real enum in music_assistant_models) fires for every queue
-        # mutation regardless of source, with object_id set to the real
-        # queue_id - which is the same value as player_id throughout this
-        # project's own code (see every other mass.player_queues call in
-        # browselibrary.py/player.py). Routing it through the exact same
-        # _push_queue_update() browselibrary.py's own command handlers
-        # already use (not a second, parallel implementation) keeps the
-        # playlist_timestamp-bumping fix in exactly one place.
-        self.mass.subscribe(self._handle_queue_items_updated, EventType.QUEUE_ITEMS_UPDATED)
+        # nothing ever told it to. Subscribed to QUEUE_UPDATED rather than
+        # QUEUE_ITEMS_UPDATED (confirmed via the controller's own
+        # signal_update(): QUEUE_UPDATED is unconditionally signalled on
+        # every call, while QUEUE_ITEMS_UPDATED only fires when
+        # items_changed=True - QUEUE_UPDATED is a strict superset) so this
+        # same fix also covers shuffle/repeat toggles made from the MA app,
+        # which only call signal_update() without items_changed and never
+        # reached the device otherwise (the client's own shuffle/repeat
+        # iconbar indicator only updates from a playerstatus push whose
+        # "playlist shuffle"/"playlist repeat" values actually changed -
+        # see Player.lua's own notify_playerShuffleModeChange/
+        # notify_playerRepeatModeChange). object_id is the real queue_id -
+        # the same value as player_id throughout this project's own code
+        # (see every other mass.player_queues call in browselibrary.py/
+        # player.py). Routing it through the exact same _push_queue_update()
+        # browselibrary.py's own command handlers already use (not a second,
+        # parallel implementation) keeps the playlist_timestamp-bumping fix
+        # in exactly one place.
+        self.mass.subscribe(self._handle_queue_items_updated, EventType.QUEUE_UPDATED)
         try:
             await self.slimproto.start()
         except Exception as err:
@@ -275,6 +285,18 @@ class SqueezelitePlayerProvider(PlayerProvider):
         command handlers), pushing the same real queue-view update those
         handlers already push for a mutation made from the device itself.
 
+        Subscribed to QUEUE_UPDATED (see loaded_in_mass's own comment for
+        why), so event.data is the real PlayerQueue - the same object
+        player.py's own play_media()/repeat-and-shuffle-toggle code reads
+        .repeat_mode/.shuffle_enabled from. Refreshed into extra_data here
+        too, for the same reason play_media() does it: the client's own
+        shuffle/repeat iconbar indicator only updates from a playerstatus
+        push whose values actually changed, and nothing previously kept
+        extra_data current for a queue mutation that wasn't a play_media()
+        call or a device-initiated toggle (e.g. shuffle/repeat flipped from
+        the MA app) - see Player.lua's own notify_playerShuffleModeChange/
+        notify_playerRepeatModeChange.
+
         object_id is the real queue_id - confirmed the same value as
         player_id for this provider throughout the rest of this project's
         own code (every mass.player_queues call in browselibrary.py/
@@ -282,6 +304,9 @@ class SqueezelitePlayerProvider(PlayerProvider):
         """
         if self.mass.closing or not self.slimproto or not event.object_id:
             return
+        if (player := self.slimproto.get_player(event.object_id)) and event.data:
+            player.extra_data["playlist repeat"] = REPEATMODE_MAP[event.data.repeat_mode]
+            player.extra_data["playlist shuffle"] = int(event.data.shuffle_enabled)
         handler = cast("BrowseLibraryHandler", self.slimproto.cli.command_handler)
         self.mass.create_task(handler._push_queue_update(event.object_id))
 

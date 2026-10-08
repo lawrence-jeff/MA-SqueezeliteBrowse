@@ -45,3 +45,16 @@ by row position, Move to End, every browse list's icons, the Favorites screen an
   fresh, so they will not reproduce a device stuck on a failed fetch from an earlier start.
 * JiveLite has no built-in test or remote-control interface. Its Screenshot applet (hold Pause
   and Rew) saves a `.bmp` in `/tmp` on the device but needs key input, so it is not used here.
+
+## Driving the player UI (virtual keyboard)
+
+`tools/vkbd.c` creates a uinput keyboard on the player and replays `d <code>` / `u <code>` / `s <ms>`
+lines from stdin, so key presses reach JiveLite as if typed. JiveLite's character shortcuts are in
+`InputToActionMap.lua` (for example `n` Now Playing, `l` go, `j` back, `h` home, Shift+S screenshot).
+The screenshot lands in `/tmp/jivelite*.bmp` on the player.
+
+    zig cc -target arm-linux-musleabihf -static -O2 e2e/tools/vkbd.c -o vkbd
+    scp vkbd tc@<player>:/tmp/ && ssh tc@<player> 'sudo modprobe uinput'
+    printf 'd 42\nd 31\ns 100\nu 31\nu 42\n' | ssh tc@<player> 'sudo /tmp/vkbd'   # Shift+S
+
+Nothing is installed permanently: /tmp and the loaded module disappear on the player's next reboot.

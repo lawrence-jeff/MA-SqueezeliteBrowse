@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-import tempfile
 import time
 from pathlib import Path
 
@@ -37,11 +36,12 @@ class PlayerUi:
         if "ok" in self._ssh("test -x /tmp/vkbd && test -e /dev/uinput && echo ok"):
             return
         source = Path(__file__).resolve().parent / "tools" / "vkbd.c"
-        binary = Path(tempfile.gettempdir()) / "vkbd-arm"
-        subprocess.run(
-            ["zig", "cc", "-target", "arm-linux-musleabihf", "-static", "-O2", str(source), "-o", str(binary)],
-            check=True,
-        )
+        binary = source.with_name("vkbd-arm")
+        if not binary.exists() or binary.stat().st_mtime < source.stat().st_mtime:
+            subprocess.run(
+                ["zig", "cc", "-target", "arm-linux-musleabihf", "-static", "-O2", str(source), "-o", str(binary)],
+                check=True,
+            )
         prefix = ["sshpass", "-p", self.password] if self.password else []
         subprocess.run([*prefix, "scp", "-q", str(binary), f"{self.target}:/tmp/vkbd"], check=True)
         self._ssh("chmod +x /tmp/vkbd; sudo modprobe uinput")

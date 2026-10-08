@@ -418,7 +418,7 @@ def navigate_my_music(ctx: Ctx) -> None:
             ctx.server_log.since(int(time.time() - started) + 3), ctx.rpc.player_id
         )
         ctx.check(f"{label}: the player requested that list", any(label.lower() in r for r in requests), str(requests))
-        ctx.ui.screenshot(shots / f"{label.lower()}.bmp")
+        ctx.ui.screenshot(shots / f"{label.lower()}.jpg")
     ctx.ui.press("h")
 
 

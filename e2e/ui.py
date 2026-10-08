@@ -7,13 +7,60 @@ import subprocess
 import time
 from pathlib import Path
 
-# Linux input event codes
+# Linux input event codes (linux/input-event-codes.h)
 KEYS = {
     "up": 103, "down": 108, "left": 105, "right": 106, "enter": 28, "esc": 1, "backspace": 14,
-    "pageup": 104, "pagedown": 109, "shift": 42,
-    "a": 30, "b": 48, "d": 32, "f": 33, "h": 35, "j": 36, "k": 37, "l": 38, "n": 49, "s": 31,
-    "t": 20, "p": 25, "x": 45, "z": 44,
+    "pageup": 104, "pagedown": 109, "shift": 42, "tab": 15, "space": 57,
 }
+_ROWS = {"qwertyuiop": 16, "asdfghjkl": 30, "zxcvbnm": 44}
+for _letters, _first in _ROWS.items():
+    for _offset, _letter in enumerate(_letters):
+        KEYS[_letter] = _first + _offset
+for _offset, _digit in enumerate("1234567890"):
+    KEYS[_digit] = 2 + _offset
+
+# Printable characters that are not letters or digits: character -> (key name, needs shift)
+_PUNCTUATION = {
+    " ": ("space", False), "-": (12, False), "=": (13, False), ",": (51, False), ".": (52, False),
+    "/": (53, False), ";": (39, False), "'": (40, False), "_": (12, True), "+": (13, True),
+    "?": (53, True), ":": (39, True), '"': (40, True), "!": (2, True), "@": (3, True), "&": (8, True),
+}
+
+
+def key_script(text: str, hold_ms: int = 40, gap_ms: int = 60) -> str:
+    """Turn text into vkbd lines: a press for each character, with Shift for capitals and symbols."""
+    lines = []
+    for char in text:
+        shifted = char.isupper()
+        lower = char.lower()
+        if lower in KEYS and (char.isalnum()):
+            code = KEYS[lower]
+        elif char in _PUNCTUATION:
+            name, shifted = _PUNCTUATION[char]
+            code = KEYS[name] if isinstance(name, str) else name
+        else:
+            raise ValueError(f"cannot type {char!r}")
+        if shifted:
+            lines.append(f"d {KEYS['shift']}")
+        lines += [f"d {code}", f"s {hold_ms}", f"u {code}"]
+        if shifted:
+            lines.append(f"u {KEYS['shift']}")
+        lines.append(f"s {gap_ms}")
+    return "\n".join(lines) + "\n"
+
+
+def _to_jpeg(source: Path, dest: Path, quality: int = 80) -> None:
+    """Compress a BMP screenshot to a JPEG (about 6 MB down to under 100 KB), with Pillow or macOS sips."""
+    try:
+        from PIL import Image  # noqa: PLC0415
+    except ImportError:
+        subprocess.run(
+            ["sips", "-s", "format", "jpeg", "-s", "formatOptions", str(quality), str(source), "--out", str(dest)],
+            check=True, capture_output=True,
+        )
+        return
+    with Image.open(source) as image:
+        image.convert("RGB").save(dest, "JPEG", quality=quality, optimize=True)
 
 
 class PlayerUi:
@@ -58,6 +105,14 @@ class PlayerUi:
             script += f"d {code}\ns 60\nu {code}\ns {int(settle * 1000)}\n"
         self.keys(script)
 
+    def type_text(self, text: str) -> None:
+        """Type into a text entry field. Outside one, letters trigger JiveLite's own shortcuts."""
+        self.keys(key_script(text))
+
+    def long_press(self, name: str = "enter", seconds: float = 3.5) -> None:
+        """A long press on the device: the key held for more than 3 seconds."""
+        self.hold(name, seconds)
+
     def hold(self, name: str, seconds: float = 1.2) -> None:
         code = KEYS[name]
         self.keys(f"d {code}\ns {int(seconds * 1000)}\nu {code}\ns 400\n")
@@ -79,8 +134,41 @@ class PlayerUi:
         if not name:
             raise RuntimeError("no screenshot appeared on the player")
         prefix = ["sshpass", "-p", self.password] if self.password else []
-        subprocess.run([*prefix, "scp", "-q", f"{self.target}:{name}", str(dest)], check=True)
+        raw = dest.with_suffix(".bmp")
+        subprocess.run([*prefix, "scp", "-q", f"{self.target}:{name}", str(raw)], check=True)
+        if dest.suffix.lower() in (".jpg", ".jpeg"):
+            _to_jpeg(raw, dest)
+            raw.unlink()
         return dest
+
+    def home(self) -> None:
+        """Back out of any menu or popup and land on the home screen."""
+        self.press("j", "j", settle=0.6)
+        self.press("h", "h", settle=1.5)
+
+    def choose_player(self, row: int) -> None:
+        """Home > Choose Player > the player in this row (the list order is fixed by JiveLite)."""
+        self.home()
+        self.to_top()
+        self.press("right", "right", "enter", settle=2.5)  # Choose Player is the third home entry
+        self.to_top()
+        self.press(*["down"] * row, settle=0.4) if row else None
+        self.press("enter", settle=3.0)
+
+    def reset(self, server_log: object, player_id: str, player_row: int = 0) -> None:
+        """Start from a known place: home, with the UI controlling this player.
+
+        The player the UI controls survives reboots, so it is checked by the player id on the
+        requests a browse sends, and switched through Choose Player if it is the wrong one.
+        """
+        for attempt in range(3):
+            self.open_my_music("Favorites")
+            seen = server_log.browse_player(server_log.since(25))  # type: ignore[attr-defined]
+            self.home()
+            if seen == player_id:
+                return
+            self.choose_player(player_row)
+        raise RuntimeError(f"the UI still controls {seen}, not {player_id}")
 
     # Grids behave as one list: Right moves to the next entry (wrapping to the next row) and Up
     # moves back one, stopping at the first entry. So Up x N resets the selection to the top.

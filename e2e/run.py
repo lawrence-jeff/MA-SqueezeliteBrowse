@@ -216,6 +216,9 @@ def main() -> int:
             print("Aborted.")
             return 2
 
+    if ctx.ui is not None and ctx.server_log is not None:
+        print("Resetting the player UI to home...")
+        ctx.ui.reset(ctx.server_log, config["player_id"], int(config.get("player_row", 0)))
     original_volume = ctx.rpc.mixer("volume")
     if not args.audible:
         # Volume 0 is the reliable way to silence a Squeezelite player. The protocol's mute

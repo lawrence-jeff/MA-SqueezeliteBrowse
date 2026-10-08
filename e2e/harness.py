@@ -240,6 +240,16 @@ class ServerLog:
         return found
 
     @staticmethod
+    def browse_player(lines: list[str]) -> str | None:
+        """The player id on the most recent browselibrary request, i.e. which player the UI controls."""
+        found = None
+        for line in lines:
+            match = re.search(r"Handling request: \['([0-9a-f:]{17})', \['browselibrary'", line)
+            if match:
+                found = match.group(1)
+        return found
+
+    @staticmethod
     def problems(lines: list[str]) -> list[str]:
         found = []
         for line in lines:

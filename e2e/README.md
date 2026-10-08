@@ -43,15 +43,15 @@ by row position, Move to End, every browse list's icons, the Favorites screen an
   error. It cannot prove what was drawn on screen.
 * The client caches failed artwork fetches for the whole session. The tests fetch each icon
   fresh, so they will not reproduce a device stuck on a failed fetch from an earlier start.
-* JiveLite has no built-in test or remote-control interface. Its Screenshot applet (hold Pause
-  and Rew) saves a `.bmp` in `/tmp` on the device but needs key input, so it is not used here.
+* JiveLite has no built-in test or remote-control interface, so the UI is driven with key presses
+  injected through uinput (see "Driving the player UI" below) and checked with its Screenshot applet.
 
 ## Driving the player UI (virtual keyboard)
 
 `tools/vkbd.c` creates a uinput keyboard on the player and replays `d <code>` / `u <code>` / `s <ms>`
 lines from stdin, so key presses reach JiveLite as if typed. JiveLite's character shortcuts are in
 `InputToActionMap.lua` (for example `n` Now Playing, `l` go, `j` back, `h` home, Shift+S screenshot).
-The screenshot lands in `/tmp/jivelite*.bmp` on the player.
+The screenshot lands in `/tmp/jivelite*.bmp` on the player; `PlayerUi.screenshot` copies it back and saves it as a JPEG when the destination ends in `.jpg` (about 70 KB instead of 6 MB).
 
     zig cc -target arm-linux-musleabihf -static -O2 -s e2e/tools/vkbd.c -o vkbd
     scp vkbd tc@<player>:/tmp/ && ssh tc@<player> 'sudo modprobe uinput'
@@ -77,3 +77,9 @@ runs write to `reports/` and are not tracked.
 Optional Music Assistant API access: set `E2E_MA_TOKEN` (an admin token; needs `aiohttp` installed) and
 cases can compare what the player shows with what the server holds. E2E-18 uses it to check that every
 favorite of each type is listed, with a loadable icon. Without the token those checks are skipped.
+
+`PlayerUi` also has `type_text` (letters, digits and common punctuation, for text fields only), `long_press`
+(Enter held 3.5 s, which opens a row's long-press menu), `home`, `choose_player` and `reset`. `run.py` calls
+`reset` before the cases when `player_host` is set: it checks which player the UI controls from the player id on
+a browse request and switches it through Choose Player if needed (`player_row` in the config is that player's
+row, default 0).

@@ -10,7 +10,7 @@ from pathlib import Path
 # Linux input event codes (linux/input-event-codes.h)
 KEYS = {
     "up": 103, "down": 108, "left": 105, "right": 106, "enter": 28, "esc": 1, "backspace": 14,
-    "pageup": 104, "pagedown": 109, "shift": 42, "tab": 15, "space": 57,
+    "pageup": 104, "pagedown": 109, "shift": 42, "tab": 15, "space": 57, "[": 26, "]": 27,
 }
 _ROWS = {"qwertyuiop": 16, "asdfghjkl": 30, "zxcvbnm": 44}
 for _letters, _first in _ROWS.items():
@@ -21,7 +21,7 @@ for _offset, _digit in enumerate("1234567890"):
 
 # Printable characters that are not letters or digits: character -> (key name, needs shift)
 _PUNCTUATION = {
-    " ": ("space", False), "-": (12, False), "=": (13, False), ",": (51, False), ".": (52, False),
+    " ": ("space", False), "[": (26, False), "]": (27, False), "-": (12, False), "=": (13, False), ",": (51, False), ".": (52, False),
     "/": (53, False), ";": (39, False), "'": (40, False), "_": (12, True), "+": (13, True),
     "?": (53, True), ":": (39, True), '"': (40, True), "!": (2, True), "@": (3, True), "&": (8, True),
 }

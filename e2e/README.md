@@ -89,3 +89,8 @@ Reading the screen: `ocr.py` runs tesseract over a screenshot (light-on-dark and
 odd misread letter. It needs the `tesseract` command (`brew install tesseract`, `apt install tesseract-ocr`) and
 Pillow. The screenshot of every check is kept in `reports/screens/<case id>-<label>.jpg`. Cases using it:
 E2E-17 (list titles) and E2E-20 (the five rows of a long-press menu on the device).
+
+E2E-21 is the long scenario: with an empty queue it adds tracks with taps and long presses on the device
+(Play Next, Add to the queue), pauses so nothing ends mid-run, reads the queue back through the Music
+Assistant API, skips through every track with Next, jumps with Play Now, then uses the queue screen's
+long-press menu (Delete item, Move to End, Play Next) and finally Clear queue. It takes about 10 minutes.

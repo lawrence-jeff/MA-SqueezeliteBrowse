@@ -474,3 +474,172 @@ def long_press_on_screen(ctx: Ctx) -> None:
         ctx.check_screen(label.lower(), present=tuple(MENU_ROWS), absent=("Delete item", "Move to End"))
         ctx.check(f"{label}: the long press queued nothing", int(ctx.rpc.status().get("playlist_tracks", 0)) == 0)
         ctx.ui.home()
+
+
+# -- E2E-21: build a queue with presses on the device, then skip around and manage it ------------------
+
+
+def _queue_state(ctx: Ctx) -> tuple[list[str], int | None, str]:
+    """The queue as Music Assistant holds it: item names in order, the current index and the state."""
+    queue_id = ctx.rpc.player_id
+    state = ctx.ma.call("player_queues/get", queue_id=queue_id)
+    items = ctx.ma.call("player_queues/items", queue_id=queue_id, limit=100, offset=0) or []
+    names = [(item.get("media_item") or {}).get("name") or item.get("name") for item in items]
+    return names, state.get("current_index"), str(state.get("state"))
+
+
+def _expect_queue(ctx: Ctx, label: str, expected: list[str], current: int | None = None) -> None:
+    """Wait a few seconds for the queue to settle, then check its order (and the current index)."""
+    deadline = time.time() + 12
+    while True:
+        names, index, state = _queue_state(ctx)
+        if (names == expected and (current is None or index == current)) or time.time() > deadline:
+            break
+        time.sleep(1)
+    ctx.check(f"{label}: queue order", names == expected, f"queue {names}, expected {expected}")
+    if current is not None:
+        ctx.check(f"{label}: current index {current}", index == current, f"index {index}, state {state}")
+
+
+def _to_track(ctx: Ctx, grid_index: int) -> None:
+    """Open My Music > Tracks and put the highlight on the track at this position of the grid."""
+    ctx.ui.open_my_music("Tracks")
+    ctx.ui.to_top()
+    if grid_index:
+        ctx.ui.press(*["right"] * grid_index, settle=0.3)
+
+
+def _tap_track(ctx: Ctx, grid_index: int) -> None:
+    _to_track(ctx, grid_index)
+    ctx.ui.press("enter", settle=3.0)
+
+
+def _long_press_track(ctx: Ctx, grid_index: int, label: str, choose: int) -> None:
+    """Long press a track, check the menu, then pick the row at this position."""
+    _to_track(ctx, grid_index)
+    ctx.ui.long_press()
+    time.sleep(2)
+    ctx.check_screen(label, present=tuple(MENU_ROWS))
+    if choose:
+        ctx.ui.press(*["down"] * choose, settle=0.3)
+    ctx.ui.press("enter", settle=3.0)
+
+
+def _open_queue(ctx: Ctx) -> None:
+    ctx.ui.home()
+    ctx.ui.press("]", settle=2.5)  # JiveLite's shortcut for Current Playlist
+    ctx.ui.to_top()
+
+
+def _queue_row_menu(ctx: Ctx, label: str, row: int, present: tuple[str, ...], absent: tuple[str, ...], choose: str) -> None:
+    """Long press a row of the queue screen, check which actions it offers, and pick one."""
+    _open_queue(ctx)
+    if row:
+        ctx.ui.press(*["down"] * row, settle=0.3)
+    ctx.ui.long_press()
+    time.sleep(2)
+    ctx.check_screen(label, present=present, absent=absent)
+    order = [text for text in ("Play Now", "Play Next", "Move to End", "Delete item") if text in present]
+    position = order.index(choose)
+    if position:
+        ctx.ui.press(*["down"] * position, settle=0.3)
+    ctx.ui.press("enter", settle=3.0)
+
+
+@case(
+    "E2E-21",
+    "Build a queue with taps and long presses on the device, skip around it and manage it",
+    "Single press > Tracks, Long press > Tracks, Queue view, Now Playing",
+)
+def build_and_manage_queue(ctx: Ctx) -> None:
+    if ctx.ui is None or ctx.ma is None or ctx.client_log is None:
+        ctx.skip("setup", "needs player_host, E2E_MA_TOKEN and the client log")
+        return
+    rows = ctx.rpc.browse("tracks", 0, 6).get("item_loop", [])
+    t = [str(row["text"]).splitlines()[0] for row in rows]
+    if len(t) < 6:
+        ctx.skip("setup", "the library needs at least 6 tracks")
+        return
+    marker = ctx.begin()
+
+    _expect_queue(ctx, "start", [])
+
+    # 1. A tap on an empty queue starts the track and does not open a menu.
+    _tap_track(ctx, 0)
+    _expect_queue(ctx, "tap 1 (idle)", [t[0]], current=0)
+    ctx.check_screen("after-tap-1", absent=tuple(MENU_ROWS))
+
+    # 2. A tap while playing adds to the end.
+    _tap_track(ctx, 1)
+    _expect_queue(ctx, "tap 2", [t[0], t[1]], current=0)
+    ctx.check_screen("after-tap-2", absent=tuple(MENU_ROWS))
+
+    # The menus below take minutes to drive; pause so the first track cannot end and shift the queue.
+    ctx.ui.press("space", settle=2.0)
+    ctx.check("paused after tap 2", wait_until(lambda: _queue_state(ctx)[2] == "paused", timeout=10), str(_queue_state(ctx)))
+
+    # 3. Long press > Play Next (keep queue) puts the track right after the current one.
+    _long_press_track(ctx, 2, "long-press-track-3", choose=1)
+    _expect_queue(ctx, "long press 3: Play Next", [t[0], t[2], t[1]], current=0)
+
+    # 4. Long press > Add to the queue appends.
+    _long_press_track(ctx, 3, "long-press-track-4", choose=2)
+    _expect_queue(ctx, "long press 4: Add to the queue", [t[0], t[2], t[1], t[3]], current=0)
+
+    # 5. Two more taps.
+    _tap_track(ctx, 4)
+    _tap_track(ctx, 5)
+    order = [t[0], t[2], t[1], t[3], t[4], t[5]]
+    _expect_queue(ctx, "taps 5 and 6", order, current=0)
+
+    # 6. The queue screen shows the same tracks, with a Clear queue row.
+    _open_queue(ctx)
+    ctx.check_screen("queue-screen", present=(*order[:5], "Clear queue"))
+
+    # 7. Resume, then skip forward through every track with the Next key; each press must move exactly
+    # one track and that track must play.
+    ctx.ui.press("p", settle=2.0)
+    ctx.verify_playing(order[0], progress=False, current=0)
+    for index in range(1, len(order)):
+        before = _queue_state(ctx)[1]
+        ctx.ui.press("b", settle=1.0)
+        wait_until(lambda: _queue_state(ctx)[1] != before, timeout=10, interval=0.5)
+        names, current, state = _queue_state(ctx)
+        ctx.check(f"Next {index}: moved exactly one track", current == before + 1, f"index {before} -> {current}")
+        ctx.check(f"Next {index}: now on {order[index]}", names[current] == order[index], f"on {names[current]!r}")
+        time.sleep(3)
+        first = float(ctx.rpc.status().get("time", 0) or 0)
+        time.sleep(3)
+        second = float(ctx.rpc.status().get("time", 0) or 0)
+        ctx.check(f"Next {index}: playing from the start", state == "playing" and second > first, f"{first:.0f}s -> {second:.0f}s, {state}")
+    # 8. Jump back to the second track from the queue screen (Play Now).
+    _open_queue(ctx)
+    ctx.ui.press("down", settle=0.3)
+    ctx.ui.long_press()
+    time.sleep(2)
+    ctx.check_screen("queue-row-1-menu", present=("Play Now",))
+    ctx.ui.press("enter", settle=3.0)
+    ctx.verify_playing(order[1], current=1)
+
+    # 9. Manage the queue: delete, move to end, play next, delete again.
+    _queue_row_menu(ctx, "queue-row-4-menu", 4, ("Play Now", "Play Next", "Move to End", "Delete item"), (), "Delete item")
+    order = [order[0], order[1], order[2], order[3], order[5]]
+    _expect_queue(ctx, "delete row 4", order, current=1)
+
+    _queue_row_menu(ctx, "queue-row-3-menu", 3, ("Play Now", "Play Next", "Move to End", "Delete item"), (), "Move to End")
+    order = [order[0], order[1], order[2], order[4], order[3]]
+    _expect_queue(ctx, "move row 3 to the end", order, current=1)
+
+    _queue_row_menu(ctx, "queue-row-4-menu-2", 4, ("Play Now", "Play Next", "Delete item"), ("Move to End",), "Play Next")
+    order = [order[0], order[1], order[4], order[2], order[3]]
+    _expect_queue(ctx, "play next on the last row", order, current=1)
+
+    # 10. Clear the queue from the queue screen.
+    _open_queue(ctx)
+    ctx.ui.press(*["down"] * len(order), settle=0.3)
+    ctx.ui.press("enter", settle=2.5)
+    ctx.check_screen("clear-queue-confirm", present=("Cancel", "Clear queue"))
+    ctx.ui.press("down", "enter", settle=3.0)  # the confirmation screen starts on Cancel
+    _expect_queue(ctx, "clear queue", [])
+
+    ctx.verify_clean(marker, expect_popup=True)

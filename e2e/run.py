@@ -15,11 +15,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 import traceback
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -34,6 +36,7 @@ from harness import (  # noqa: E402
     CaseResult,
     ClientLog,
     Ctx,
+    MaApi,
     Rpc,
     ServerLog,
 )
@@ -62,7 +65,10 @@ def build_ctx(config: dict, args: argparse.Namespace) -> Ctx:
         from ui import PlayerUi
 
         ui = PlayerUi(config["player_host"])
-    return Ctx(rpc, client_log, server_log, media, ui)
+    ma = None
+    if os.environ.get("E2E_MA_TOKEN"):
+        ma = MaApi(urlparse(config["server_url"]).hostname or "", os.environ["E2E_MA_TOKEN"])
+    return Ctx(rpc, client_log, server_log, media, ui, ma)
 
 
 def check_player(rpc: Rpc, config: dict, force: bool) -> None:

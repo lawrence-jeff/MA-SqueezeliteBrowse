@@ -420,3 +420,33 @@ def navigate_my_music(ctx: Ctx) -> None:
         ctx.check(f"{label}: the player requested that list", any(label.lower() in r for r in requests), str(requests))
         ctx.ui.screenshot(shots / f"{label.lower()}.bmp")
     ctx.ui.press("h")
+
+
+FAVORITE_TYPES = {
+    "artists": "artists",
+    "albums": "albums",
+    "tracks": "tracks",
+    "playlists": "playlists",
+    "audiobooks": "audiobooks",
+    "podcasts": "podcasts",
+    "radio": "radios",
+}
+
+
+@case("E2E-18", "Favorites of every type list what Music Assistant has favorited", "Favorites > each type")
+def favorites_by_type(ctx: Ctx) -> None:
+    if ctx.ma is None:
+        ctx.skip("Music Assistant API", "set E2E_MA_TOKEN to compare against the server")
+        return
+    for mode, library_type in FAVORITE_TYPES.items():
+        expected = [item["name"] for item in ctx.ma.favorites(library_type)]
+        rows = ctx.rpc.browse(mode, 0, 200, favorite_only=1).get("item_loop", [])
+        texts = [str(row.get("text", "")) for row in rows]
+        if not expected:
+            ctx.skip(mode, "no favorites of this type in Music Assistant")
+            continue
+        missing = [name for name in expected if not any(name in text for text in texts)]
+        ctx.check(f"{mode}: every favorite is listed", not missing, f"missing {missing[:3]}; listed {texts[:5]}")
+        ctx.check(f"{mode}: nothing extra is listed", len(texts) <= len(expected), f"{len(texts)} rows for {len(expected)} favorites")
+        for row in rows[:3]:
+            ctx.add(check_icon(ctx.rpc.base_url, row.get("icon")), prefix=f"{mode} '{str(row.get('text')).replace(chr(10), ' - ')}': ")

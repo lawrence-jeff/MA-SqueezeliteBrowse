@@ -172,6 +172,37 @@ class ClientLog:
         return [r for r in rows if re.match(r"^\S+ \S+ ERROR\b", r)]
 
 
+class MaApi:
+    """A small client for the Music Assistant websocket API (needs aiohttp and an admin token)."""
+
+    def __init__(self, host: str, token: str, port: int = 8095) -> None:
+        self.url = f"ws://{host}:{port}/ws"
+        self.token = token
+
+    def call(self, command: str, **args: Any) -> Any:
+        import asyncio  # noqa: PLC0415
+        import aiohttp  # noqa: PLC0415
+
+        async def run() -> Any:
+            async with aiohttp.ClientSession() as session, session.ws_connect(self.url) as ws:
+                await ws.receive_json()  # server info
+                for number, (name, params) in enumerate(
+                    [("auth", {"token": self.token}), (command, args)]
+                ):
+                    await ws.send_json({"message_id": str(number), "command": name, "args": params})
+                    while (reply := await ws.receive_json()).get("message_id") != str(number):
+                        pass
+                    if "error_code" in reply:
+                        raise RuntimeError(f"{name}: {reply.get('details')}")
+                return reply.get("result")
+
+        return asyncio.run(run())
+
+    def favorites(self, library_type: str) -> list[dict[str, Any]]:
+        """The favorite items of a library type: artists, albums, tracks, playlists, radios, ..."""
+        return self.call(f"music/{library_type}/library_items", favorite=True, limit=200) or []
+
+
 class ServerLog:
     """The Music Assistant container log, read over ssh."""
 
@@ -272,8 +303,10 @@ class Ctx:
         server_log: ServerLog | None,
         media: dict[str, dict[str, Any]],
         ui: Any = None,
+        ma: MaApi | None = None,
     ) -> None:
         self.ui = ui
+        self.ma = ma
         self.rpc = rpc
         self.client_log = client_log
         self.server_log = server_log

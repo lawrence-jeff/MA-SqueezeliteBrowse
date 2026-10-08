@@ -73,3 +73,7 @@ after the player reboots). Screenshots from the run are written to `reports/scre
 
 `reports/sample/` holds an example report and the screenshots from a passing E2E-17 run. Other
 runs write to `reports/` and are not tracked.
+
+Optional Music Assistant API access: set `E2E_MA_TOKEN` (an admin token; needs `aiohttp` installed) and
+cases can compare what the player shows with what the server holds. E2E-18 uses it to check that every
+favorite of each type is listed, with a loadable icon. Without the token those checks are skipped.

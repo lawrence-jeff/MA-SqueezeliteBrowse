@@ -70,3 +70,6 @@ next row), Up moves back one and stops at the first, Down is unreliable, so `Pla
 resets with `h` and Up x12, then uses Right. E2E-17 uses it and needs `player_host` in the config
 and `E2E_PLAYER_PASSWORD` in the environment (the helper and uinput are reinstalled automatically
 after the player reboots). Screenshots from the run are written to `reports/screens/`.
+
+`reports/sample/` holds an example report and the screenshots from a passing E2E-17 run. Other
+runs write to `reports/` and are not tracked.

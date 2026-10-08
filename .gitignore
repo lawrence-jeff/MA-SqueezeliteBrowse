@@ -228,4 +228,5 @@ __marimo__/
 
 # End-to-end test config (local hosts and keys) and run reports
 /e2e/config.json
-/e2e/reports/
+/e2e/reports/*
+!/e2e/reports/sample/

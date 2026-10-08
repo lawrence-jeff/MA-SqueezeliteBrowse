@@ -53,7 +53,7 @@ lines from stdin, so key presses reach JiveLite as if typed. JiveLite's characte
 `InputToActionMap.lua` (for example `n` Now Playing, `l` go, `j` back, `h` home, Shift+S screenshot).
 The screenshot lands in `/tmp/jivelite*.bmp` on the player.
 
-    zig cc -target arm-linux-musleabihf -static -O2 e2e/tools/vkbd.c -o vkbd
+    zig cc -target arm-linux-musleabihf -static -O2 -s e2e/tools/vkbd.c -o vkbd
     scp vkbd tc@<player>:/tmp/ && ssh tc@<player> 'sudo modprobe uinput'
     printf 'd 42\nd 31\ns 100\nu 31\nu 42\n' | ssh tc@<player> 'sudo /tmp/vkbd'   # Shift+S
 

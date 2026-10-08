@@ -39,7 +39,7 @@ class PlayerUi:
         binary = source.with_name("vkbd-arm")
         if not binary.exists() or binary.stat().st_mtime < source.stat().st_mtime:
             subprocess.run(
-                ["zig", "cc", "-target", "arm-linux-musleabihf", "-static", "-O2", str(source), "-o", str(binary)],
+                ["zig", "cc", "-target", "arm-linux-musleabihf", "-static", "-O2", "-s", str(source), "-o", str(binary)],
                 check=True,
             )
         prefix = ["sshpass", "-p", self.password] if self.password else []

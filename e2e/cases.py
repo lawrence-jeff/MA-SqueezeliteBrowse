@@ -11,6 +11,7 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from harness import FAIL, Check, Ctx, Rpc, check_icon, wait_until  # noqa: F401
@@ -401,3 +402,21 @@ def home_menu(ctx: Ctx) -> None:
     )
     ctx.check("My Music present", "myMusic" in by_id)
     ctx.check("no presets in the My Music list", not any(str(i).startswith("preset_") for i in by_id))
+
+
+@case("E2E-17", "Keyboard navigation opens each My Music list", "Home & navigation > My Music")
+def navigate_my_music(ctx: Ctx) -> None:
+    if ctx.ui is None or ctx.server_log is None:
+        ctx.skip("ui", "needs player_host in the config and the server log")
+        return
+    shots = Path(__file__).resolve().parent / "reports" / "screens"
+    shots.mkdir(parents=True, exist_ok=True)
+    for label in ("Artists", "Albums", "Playlists", "Radio", "Favorites"):
+        started = time.time()
+        ctx.ui.open_my_music(label)
+        requests = ctx.server_log.browse_requests(
+            ctx.server_log.since(int(time.time() - started) + 3), ctx.rpc.player_id
+        )
+        ctx.check(f"{label}: the player requested that list", any(label.lower() in r for r in requests), str(requests))
+        ctx.ui.screenshot(shots / f"{label.lower()}.bmp")
+    ctx.ui.press("h")

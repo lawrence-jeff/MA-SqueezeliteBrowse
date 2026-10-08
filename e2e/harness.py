@@ -271,7 +271,9 @@ class Ctx:
         client_log: ClientLog | None,
         server_log: ServerLog | None,
         media: dict[str, dict[str, Any]],
+        ui: Any = None,
     ) -> None:
+        self.ui = ui
         self.rpc = rpc
         self.client_log = client_log
         self.server_log = server_log

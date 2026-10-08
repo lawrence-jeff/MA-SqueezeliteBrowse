@@ -6,6 +6,7 @@
   "server_ssh": "user@MA_HOST",
   "server_ssh_key": "~/.ssh/id_ed25519",
   "server_container": "app_xxxxxxxx_music_assistant",
+  "player_host": "PCP_HOST (optional, enables the keyboard-navigation case)",
   "prefer": {
     "track": "",
     "album": "",

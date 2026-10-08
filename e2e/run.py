@@ -57,7 +57,12 @@ def build_ctx(config: dict, args: argparse.Namespace) -> Ctx:
         key = str(Path(config.get("server_ssh_key", "~/.ssh/id_ed25519")).expanduser())
         server_log = ServerLog(config["server_ssh"], key, config["server_container"])
     media = cases.discover(rpc, config.get("prefer", {}))
-    return Ctx(rpc, client_log, server_log, media)
+    ui = None
+    if config.get("player_host"):
+        from ui import PlayerUi
+
+        ui = PlayerUi(config["player_host"])
+    return Ctx(rpc, client_log, server_log, media, ui)
 
 
 def check_player(rpc: Rpc, config: dict, force: bool) -> None:

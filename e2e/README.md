@@ -64,3 +64,9 @@ JiveLite's own log shows only network and menu-sync events, not which screen is 
 menu the player is on, use `ServerLog.browse_requests`, which reads the `browselibrary` request
 each screen sends, or take a screenshot. Arrow keys move the highlight, Enter or `l` opens an item,
 `j` goes back (the Left arrow does not), `h` is home.
+
+Navigation notes: grids and lists behave as one list. Right moves to the next entry (wrapping to the
+next row), Up moves back one and stops at the first, Down is unreliable, so `PlayerUi.open_my_music`
+resets with `h` and Up x12, then uses Right. E2E-17 uses it and needs `player_host` in the config
+and `E2E_PLAYER_PASSWORD` in the environment (the helper and uinput are reinstalled automatically
+after the player reboots). Screenshots from the run are written to `reports/screens/`.

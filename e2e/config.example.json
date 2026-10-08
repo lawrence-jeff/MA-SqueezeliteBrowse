@@ -1,0 +1,18 @@
+{
+  "server_url": "http://MA_HOST:9000",
+  "player_id": "aa:bb:cc:dd:ee:ff",
+  "player_name": "name the player shows in Music Assistant",
+  "client_log_url": "http://PCP_HOST/cgi-bin/diag_logs.cgi?SELECTION=pcp_jivelite.log&ACTION=Show",
+  "server_ssh": "user@MA_HOST",
+  "server_ssh_key": "~/.ssh/id_ed25519",
+  "server_container": "app_xxxxxxxx_music_assistant",
+  "prefer": {
+    "track": "",
+    "album": "",
+    "artist": "",
+    "radio": "",
+    "audiobook": "",
+    "podcast": "",
+    "playlist": ""
+  }
+}

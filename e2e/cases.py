@@ -450,3 +450,14 @@ def favorites_by_type(ctx: Ctx) -> None:
         ctx.check(f"{mode}: nothing extra is listed", len(texts) <= len(expected), f"{len(texts)} rows for {len(expected)} favorites")
         for row in rows[:3]:
             ctx.add(check_icon(ctx.rpc.base_url, row.get("icon")), prefix=f"{mode} '{str(row.get('text')).replace(chr(10), ' - ')}': ")
+
+
+@case("E2E-19", "An empty queue offers no Play Now or Delete rows", "Queue > track info shortcut")
+def empty_queue_menu(ctx: Ctx) -> None:
+    ctx.rpc.clear()
+    for index in (0, 1):
+        rows = ctx.rpc.context_menu(index).get("item_loop", [])
+        texts = [str(row.get("text", "")) for row in rows]
+        actionable = [t for t in texts if t in ("Play Now", "Play Next", "Move to End", "Delete item")]
+        ctx.check(f"row {index} of an empty queue has no actions", not actionable, str(texts))
+        ctx.check(f"row {index} still shows something", bool(texts), "the menu would be an empty window")

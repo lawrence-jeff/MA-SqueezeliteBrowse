@@ -168,6 +168,59 @@ class ClientLog:
         needle = f"/slim/displaystatus/{self.player_id}"
         return sum(1 for r in rows if needle in r and "_response" in r)
 
+    _POPUP = re.compile(r"\[Label\((?P<text>.*)\)\] (?P<style>toast_popup\w*)\.(?P<part>text|subtext) : x = ")
+
+    @classmethod
+    def popups_shown(cls, rows: list[str]) -> list[tuple[str, str, str]]:
+        """The popups JiveLite built, as (style, first line, second line), oldest first.
+
+        Needs the UI debug logging: the client logs each label of a popup as it styles it, so a
+        showBriefly that arrived but was never drawn does not show up here, unlike a displaystatus push.
+        """
+        found: list[list[str]] = []
+        for line in rows:
+            match = cls._POPUP.search(line)
+            if not match:
+                continue
+            if match["part"] == "text":
+                found.append([match["style"], match["text"], ""])
+            elif found:
+                found[-1][2] = match["text"]
+        return [(style, first, second) for style, first, second in found]
+
+    @staticmethod
+    def has_ui_logging(rows: list[str]) -> bool:
+        return any("debug_style" in line for line in rows)
+
+    @staticmethod
+    def show_brieflys(rows: list[str]) -> int:
+        """How many showBriefly popups the client processed (once per message that carries text).
+
+        Needs the Player debug logging. The keep-alive pushes the server sends every minute carry no
+        text and are not counted. This says the client formatted a popup, not that it was drawn:
+        the popup's own style lines are only logged the first time each popup style is built.
+        """
+        return sum("_formatShowBrieflyText" in line for line in rows)
+
+    @staticmethod
+    def has_player_logging(rows: list[str]) -> bool:
+        return any("_process_displaystatus" in line or "Player.lua" in line for line in rows)
+
+    @staticmethod
+    def sent_requests(rows: list[str]) -> list[str]:
+        """The requests the client sent, e.g. "playlistcontrol,cmd:add,menu:1,track_id:27,...", oldest first."""
+        found = []
+        for line in rows:
+            match = re.search(r"Comet.lua:\d+ Comet \{[^}]*\}: request\(function: \S+, reqid:\d+, \S+, (?P<req>[^ ]+), priority", line)
+            if match:
+                found.append(match["req"])
+        return found
+
+    @staticmethod
+    def screens_loaded(rows: list[str]) -> list[str]:
+        """The titles of the lists the client loaded (the screens it showed), oldest first."""
+        return [m["title"] for line in rows if (m := re.search(r"DB \{(?P<title>[^}]*)\} menuItems\(\)", line))]
+
     @staticmethod
     def errors(rows: list[str]) -> list[str]:
         return [r for r in rows if re.match(r"^\S+ \S+ ERROR\b", r)]
@@ -289,6 +342,11 @@ def check_icon(base_url: str, icon: str | None) -> Check:
     return Check("icon", PASS, f"{icon}: {ctype} {len(body)}B")
 
 
+def say(message: str) -> None:
+    """Print what the run is doing right now (navigation, presses, waits), as it happens."""
+    print(f"      > {time.strftime('%H:%M:%S')} {message}", flush=True)
+
+
 def wait_until(fn: Callable[[], bool], timeout: float = 25, interval: float = 1.0) -> bool:
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -318,6 +376,7 @@ class Ctx:
     ) -> None:
         self.ui = ui
         self.ma = ma
+        self.live = False  # print each check as it is recorded
         self.rpc = rpc
         self.client_log = client_log
         self.server_log = server_log
@@ -329,16 +388,44 @@ class Ctx:
         assert self.result is not None
         status = PASS if ok else (WARN if warn else FAIL)
         self.result.checks.append(Check(name, status, detail))
+        self._echo(status, name, detail)
         return ok
+
+    def _echo(self, status: str, name: str, detail: str = "") -> None:
+        if self.live:
+            tail = f" - {detail[:110]}" if detail else ""
+            print(f"        {status:4} {name}{tail}", flush=True)
 
     def skip(self, name: str, detail: str) -> None:
         assert self.result is not None
         self.result.checks.append(Check(name, SKIP, detail))
+        self._echo(SKIP, name, detail)
 
     def add(self, check: Check, prefix: str = "") -> None:
         assert self.result is not None
         check.name = f"{prefix}{check.name}"
         self.result.checks.append(check)
+        self._echo(check.status, check.name, check.detail)
+
+    def snap(self, label: str) -> Path:
+        """Screenshot the player now and return the file, to be read later with check_snap."""
+        assert self.ui is not None and self.result is not None
+        folder = Path(__file__).resolve().parent / "reports" / "screens"
+        folder.mkdir(parents=True, exist_ok=True)
+        return self.ui.screenshot(folder / f"{self.result.case_id}-{label}.jpg")
+
+    def check_snap(
+        self, shot: Path, label: str, present: tuple[str, ...] = (), absent: tuple[str, ...] = ()
+    ) -> list[str]:
+        """Read a screenshot with OCR and check what is (and is not) on the screen."""
+        import ocr  # noqa: PLC0415
+
+        lines = ocr.read_lines(shot)
+        for wanted in present:
+            self.check(f"{label}: screen shows '{wanted}'", ocr.contains(lines, wanted), f"read: {lines[:14]}")
+        for unwanted in absent:
+            self.check(f"{label}: screen does not show '{unwanted}'", not ocr.contains(lines, unwanted), f"read: {lines[:14]}")
+        return lines
 
     def check_screen(
         self, label: str, present: tuple[str, ...] = (), absent: tuple[str, ...] = ()
@@ -347,18 +434,7 @@ class Ctx:
 
         The screenshot is kept in reports/screens/ as <case id>-<label>.jpg.
         """
-        import ocr  # noqa: PLC0415
-
-        assert self.ui is not None and self.result is not None
-        folder = Path(__file__).resolve().parent / "reports" / "screens"
-        folder.mkdir(parents=True, exist_ok=True)
-        shot = self.ui.screenshot(folder / f"{self.result.case_id}-{label}.jpg")
-        lines = ocr.read_lines(shot)
-        for wanted in present:
-            self.check(f"{label}: screen shows '{wanted}'", ocr.contains(lines, wanted), f"read: {lines[:14]}")
-        for unwanted in absent:
-            self.check(f"{label}: screen does not show '{unwanted}'", not ocr.contains(lines, unwanted), f"read: {lines[:14]}")
-        return lines
+        return self.check_snap(self.snap(label), label, present, absent)
 
     # -- steps
     def begin(self) -> Marker:
@@ -371,8 +447,12 @@ class Ctx:
         if self.client_log and marker.client is not None:
             rows = self.client_log.since(marker.client)
             if expect_popup:
-                n = self.client_log.popups(rows)
-                self.check("popup reached the client", n >= 1, f"{n} displaystatus push(es)")
+                if self.client_log.has_player_logging(rows):
+                    n = self.client_log.show_brieflys(rows)
+                    self.check("a popup was processed by the client", n >= 1, f"{n} showBriefly message(s)")
+                else:
+                    n = self.client_log.popups(rows)
+                    self.check("popup reached the client", n >= 1, f"{n} displaystatus push(es); raise the UI log level to see if it was drawn")
             errors = self.client_log.errors(rows)
             known = [e for e in errors if any(k in e for k in KNOWN_CLIENT_ERRORS)]
             other = [e for e in errors if e not in known]

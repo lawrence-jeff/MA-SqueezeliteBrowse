@@ -7,6 +7,8 @@ import subprocess
 import time
 from pathlib import Path
 
+from harness import say
+
 # Linux input event codes (linux/input-event-codes.h)
 KEYS = {
     "up": 103, "down": 108, "left": 105, "right": 106, "enter": 28, "esc": 1, "backspace": 14,
@@ -111,6 +113,7 @@ class PlayerUi:
 
     def long_press(self, name: str = "enter", seconds: float = 3.5) -> None:
         """A long press on the device: the key held for more than 3 seconds."""
+        say(f"Long press ({name} held {seconds:g}s)")
         self.hold(name, seconds)
 
     def hold(self, name: str, seconds: float = 1.2) -> None:
@@ -119,6 +122,7 @@ class PlayerUi:
 
     def screenshot(self, dest: Path) -> Path:
         """Take a JiveLite screenshot (Shift+S) and copy it to dest. Retries if the file does not appear."""
+        say(f"Taking a screenshot ({dest.name})")
         name = ""
         for _ in range(3):
             self._ssh("sudo rm -f /tmp/jivelite*.bmp")
@@ -148,6 +152,7 @@ class PlayerUi:
 
     def choose_player(self, row: int) -> None:
         """Home > Choose Player > the player in this row (the list order is fixed by JiveLite)."""
+        say(f"Navigating: Home > Choose Player > row {row + 1}")
         self.home()
         self.to_top()
         self.press("right", "right", "enter", settle=2.5)  # Choose Player is the third home entry
@@ -182,6 +187,7 @@ class PlayerUi:
 
     def open_my_music(self, label: str) -> None:
         """From anywhere: go home, open My Music, then open the entry called label."""
+        say(f"Navigating: Home > My Music > {label}")
         self.press("h", "h", settle=2.0)
         self.to_top()
         self.press("right", "enter", settle=2.5)  # My Music is the second home entry

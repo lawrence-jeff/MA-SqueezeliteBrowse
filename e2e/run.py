@@ -7,8 +7,7 @@ Run the end-to-end tests against a real player.
     python3 e2e/run.py --only E2E-04,E2E-07
     python3 e2e/run.py --list
 
-The tests clear the queue on the configured player and play real media. The player's volume is
-set to 0 for the run (and restored afterwards) unless --audible is given.
+The tests clear the queue on the configured player and play real media. The player plays at its current volume; pass --silent to set it to 0 for the run (and restore it afterwards).
 """
 
 from __future__ import annotations
@@ -41,6 +40,7 @@ from harness import (  # noqa: E402
     ServerLog,
 )
 
+LIVE = True  # checks are printed as they are recorded, so the end summary only repeats the header
 SYMBOL = {PASS: "PASS", FAIL: "FAIL", WARN: "WARN", SKIP: "SKIP"}
 
 
@@ -114,6 +114,7 @@ def print_plan(ctx: Ctx, chosen: list[cases.CaseDef]) -> None:
 def run_case(ctx: Ctx, definition: cases.CaseDef) -> CaseResult:
     result = CaseResult(definition.case_id, definition.title, definition.covers)
     ctx.result = result
+    print(f"[RUN ] {definition.case_id} {definition.title}", flush=True)
     started = time.time()
     missing = [n for n in definition.needs if n not in ctx.media]
     if missing:
@@ -132,8 +133,8 @@ def run_case(ctx: Ctx, definition: cases.CaseDef) -> CaseResult:
 
 
 def print_result(result: CaseResult, verbose: bool) -> None:
-    print(f"[{SYMBOL[result.status]}] {result.case_id} {result.title} ({result.seconds:.0f}s)")
-    for check in result.checks:
+    print(f"[{SYMBOL[result.status]}] {result.case_id} {result.title} ({result.seconds:.0f}s)", flush=True)
+    for check in result.checks if not LIVE else []:
         if verbose or check.status in (FAIL, WARN):
             detail = f" - {check.detail}" if check.detail else ""
             print(f"      {SYMBOL[check.status]} {check.name}{detail}")
@@ -180,6 +181,24 @@ def write_reports(results: list[CaseResult], config: dict) -> Path:
     return path
 
 
+def announce(ctx: Ctx, results: list[CaseResult], volume: int | None) -> None:
+    """Speak the outcome on the player through Music Assistant's announcement feature (text to speech)."""
+    if ctx.ma is None:
+        return
+    issues = sum(1 for result in results for check in result.checks if check.status == FAIL)
+    issues += sum(1 for result in results if result.error)
+    if issues == 0:
+        message = "Testing complete with no issues"
+    else:
+        message = f"Testing complete with {issues} issue{'s' if issues != 1 else ''}"
+    try:
+        extra = {"volume_level": volume} if volume is not None else {}
+        ctx.ma.call("players/cmd/play_announcement", player_id=ctx.rpc.player_id, message=message, **extra)
+        print(f"Announced on the player: {message}")
+    except Exception as err:  # noqa: BLE001 - an announcement problem must not change the test result
+        print(f"Could not announce the result ({err})")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--config", default=str(HERE / "config.json"))
@@ -187,8 +206,9 @@ def main() -> int:
     parser.add_argument("--list", action="store_true", help="list the cases and exit")
     parser.add_argument("--dry-run", action="store_true", help="discover media and show the plan only")
     parser.add_argument("--yes", action="store_true", help="skip the confirmation prompt")
-    parser.add_argument("--audible", action="store_true", help="do not set the volume to 0 during the run")
+    parser.add_argument("--silent", action="store_true", help="set the volume to 0 during the run (restored afterwards)")
     parser.add_argument("--force", action="store_true", help="run even if the player is playing or has a queue")
+    parser.add_argument("--no-announce", action="store_true", help="do not speak the result on the player")
     parser.add_argument("--no-client-log", action="store_true")
     parser.add_argument("--no-server-log", action="store_true")
     parser.add_argument("-v", "--verbose", action="store_true", help="show passing checks too")
@@ -210,7 +230,7 @@ def main() -> int:
     if not args.yes:
         answer = input(
             f"\nThis clears the queue on {config.get('player_name')} and plays real media"
-            f"{'' if args.audible else ' (volume set to 0)'}. Continue? [y/N] "
+            f"{' (volume set to 0)' if args.silent else ''}. Continue? [y/N] "
         )
         if answer.strip().lower() != "y":
             print("Aborted.")
@@ -220,13 +240,14 @@ def main() -> int:
         print("Resetting the player UI to home...")
         ctx.ui.reset(ctx.server_log, config["player_id"], int(config.get("player_row", 0)))
     original_volume = ctx.rpc.mixer("volume")
-    if not args.audible:
+    if args.silent:
         # Volume 0 is the reliable way to silence a Squeezelite player. The protocol's mute
         # ("aude") only switches the output off, and the next stream switches it back on.
         ctx.rpc.mixer("volume", 0)
         if ctx.rpc.mixer("volume") != 0:
             ctx.rpc.mixer("volume", original_volume)
             sys.exit("Could not set the volume to 0, so the run would be audible. Aborting.")
+    ctx.live = LIVE
     results: list[CaseResult] = []
     try:
         print()
@@ -237,6 +258,11 @@ def main() -> int:
     finally:
         ctx.rpc.mixer("volume", int(original_volume or 0))
 
+    if not args.no_announce:
+        announce(ctx, results, config.get("announce_volume"))
+        # Music Assistant does not always put the volume back after an announcement given a level.
+        time.sleep(3)
+        ctx.rpc.mixer("volume", int(original_volume or 0))
     report = write_reports(results, config)
     counts = {s: sum(1 for r in results if r.status == s) for s in (PASS, WARN, FAIL, SKIP)}
     print(

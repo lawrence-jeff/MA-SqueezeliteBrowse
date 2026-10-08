@@ -18,7 +18,7 @@ Music Assistant's own websocket API needs a login token. The JSON-RPC on the Squ
    not change anything.
 3. `python3 e2e/run.py` runs the cases. It refuses to start unless the configured player is
    idle with an empty queue (or you pass `--force`), only ever touches that one player, sets its
-   volume to 0 for the run and restores it afterwards (`--audible` to hear it). Mute is not used:
+   volume to 0 for the run and restores it afterwards when you pass `--silent`; by default it plays at the player's current volume. Mute is not used:
    Squeezelite treats the protocol's mute as an output off switch that the next stream undoes.
 
 `--list` shows the cases, `--only E2E-04,E2E-07` runs a few, `-v` shows passing checks.
@@ -94,3 +94,7 @@ E2E-21 is the long scenario: with an empty queue it adds tracks with taps and lo
 (Play Next, Add to the queue), pauses so nothing ends mid-run, reads the queue back through the Music
 Assistant API, skips through every track with Next, jumps with Play Now, then uses the queue screen's
 long-press menu (Delete item, Move to End, Play Next) and finally Clear queue. It takes about 10 minutes.
+
+At the end of a run the result is spoken on the player ("Testing complete with 3 issues") through Music Assistant's
+announcement feature, when `E2E_MA_TOKEN` is set; `--no-announce` turns it off. Music Assistant needs a text-to-speech
+engine for this (here the Home Assistant one); the announcement uses Music Assistant's own announcement volume setting (set `announce_volume` in the config to override it; Music Assistant may then leave the volume at that level).

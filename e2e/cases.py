@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from harness import FAIL, Check, Ctx, Rpc, check_icon, wait_until  # noqa: F401
+from harness import FAIL, Check, Ctx, Rpc, check_icon, say, wait_until  # noqa: F401
 
 MENU_ROWS = [
     "Play Now (keep queue)",
@@ -501,28 +501,34 @@ def _expect_queue(ctx: Ctx, label: str, expected: list[str], current: int | None
         ctx.check(f"{label}: current index {current}", index == current, f"index {index}, state {state}")
 
 
-def _to_track(ctx: Ctx, grid_index: int) -> None:
-    """Open My Music > Tracks and put the highlight on the track at this position of the grid."""
-    ctx.ui.open_my_music("Tracks")
+def _to_track(ctx: Ctx, grid_index: int, section: str = "Tracks") -> None:
+    """Open a My Music grid (Tracks by default) and put the highlight on the item at this position."""
+    ctx.ui.open_my_music(section)
     ctx.ui.to_top()
     if grid_index:
         ctx.ui.press(*["right"] * grid_index, settle=0.3)
 
 
-def _tap_track(ctx: Ctx, grid_index: int) -> None:
-    _to_track(ctx, grid_index)
+def _tap_track(ctx: Ctx, grid_index: int, section: str = "Tracks", name: str = "") -> None:
+    _to_track(ctx, grid_index, section)
+    say(f"Tapping '{name or grid_index + 1}' (Enter)")
     ctx.ui.press("enter", settle=3.0)
 
 
-def _long_press_track(ctx: Ctx, grid_index: int, label: str, choose: int) -> None:
-    """Long press a track, check the menu, then pick the row at this position."""
-    _to_track(ctx, grid_index)
+def _long_press_track(
+    ctx: Ctx, grid_index: int, label: str, choose: int, section: str = "Tracks", name: str = ""
+) -> None:
+    """Long press an item, check the menu, then pick the row at this position."""
+    _to_track(ctx, grid_index, section)
+    say(f"Long pressing '{name or grid_index + 1}', then choosing '{MENU_ROWS[choose]}'")
     ctx.ui.long_press()
-    time.sleep(2)
-    ctx.check_screen(label, present=tuple(MENU_ROWS))
+    time.sleep(0.5)
+    shot = ctx.snap(label)
+    time.sleep(1.5)  # JiveLite drops key presses while it is still saving the screenshot
     if choose:
         ctx.ui.press(*["down"] * choose, settle=0.3)
     ctx.ui.press("enter", settle=3.0)
+    ctx.check_snap(shot, label, present=tuple(MENU_ROWS))  # read after choosing, so the menu is not kept waiting
 
 
 def _open_queue(ctx: Ctx) -> None:
@@ -537,13 +543,15 @@ def _queue_row_menu(ctx: Ctx, label: str, row: int, present: tuple[str, ...], ab
     if row:
         ctx.ui.press(*["down"] * row, settle=0.3)
     ctx.ui.long_press()
-    time.sleep(2)
-    ctx.check_screen(label, present=present, absent=absent)
+    time.sleep(0.5)
+    shot = ctx.snap(label)
+    time.sleep(1.5)  # JiveLite drops key presses while it is still saving the screenshot
     order = [text for text in ("Play Now", "Play Next", "Move to End", "Delete item") if text in present]
     position = order.index(choose)
     if position:
         ctx.ui.press(*["down"] * position, settle=0.3)
     ctx.ui.press("enter", settle=3.0)
+    ctx.check_snap(shot, label, present=present, absent=absent)
 
 
 @case(
@@ -565,12 +573,12 @@ def build_and_manage_queue(ctx: Ctx) -> None:
     _expect_queue(ctx, "start", [])
 
     # 1. A tap on an empty queue starts the track and does not open a menu.
-    _tap_track(ctx, 0)
+    _tap_track(ctx, 0, name=t[0])
     _expect_queue(ctx, "tap 1 (idle)", [t[0]], current=0)
     ctx.check_screen("after-tap-1", absent=tuple(MENU_ROWS))
 
     # 2. A tap while playing adds to the end.
-    _tap_track(ctx, 1)
+    _tap_track(ctx, 1, name=t[1])
     _expect_queue(ctx, "tap 2", [t[0], t[1]], current=0)
     ctx.check_screen("after-tap-2", absent=tuple(MENU_ROWS))
 
@@ -579,16 +587,16 @@ def build_and_manage_queue(ctx: Ctx) -> None:
     ctx.check("paused after tap 2", wait_until(lambda: _queue_state(ctx)[2] == "paused", timeout=10), str(_queue_state(ctx)))
 
     # 3. Long press > Play Next (keep queue) puts the track right after the current one.
-    _long_press_track(ctx, 2, "long-press-track-3", choose=1)
+    _long_press_track(ctx, 2, "long-press-track-3", choose=1, name=t[2])
     _expect_queue(ctx, "long press 3: Play Next", [t[0], t[2], t[1]], current=0)
 
     # 4. Long press > Add to the queue appends.
-    _long_press_track(ctx, 3, "long-press-track-4", choose=2)
+    _long_press_track(ctx, 3, "long-press-track-4", choose=2, name=t[3])
     _expect_queue(ctx, "long press 4: Add to the queue", [t[0], t[2], t[1], t[3]], current=0)
 
     # 5. Two more taps.
-    _tap_track(ctx, 4)
-    _tap_track(ctx, 5)
+    _tap_track(ctx, 4, name=t[4])
+    _tap_track(ctx, 5, name=t[5])
     order = [t[0], t[2], t[1], t[3], t[4], t[5]]
     _expect_queue(ctx, "taps 5 and 6", order, current=0)
 
@@ -642,4 +650,77 @@ def build_and_manage_queue(ctx: Ctx) -> None:
     ctx.ui.press("down", "enter", settle=3.0)  # the confirmation screen starts on Cancel
     _expect_queue(ctx, "clear queue", [])
 
+    ctx.verify_clean(marker, expect_popup=True)
+
+
+@case(
+    "E2E-22",
+    "Radio: build a queue with taps and long presses of every kind on the device",
+    "Single press > Radio, Long press > Radio",
+    ("radio",),
+)
+def build_radio_queue(ctx: Ctx) -> None:
+    if ctx.ui is None or ctx.ma is None or ctx.client_log is None:
+        ctx.skip("setup", "needs player_host, E2E_MA_TOKEN and the client log")
+        return
+    rows = ctx.rpc.browse("radio", 0, 6).get("item_loop", [])
+    r = [str(row["text"]).splitlines()[0] for row in rows]
+    if len(r) < 4:
+        ctx.skip("setup", "the library needs at least 4 radio stations")
+        return
+    marker = ctx.begin()
+    _expect_queue(ctx, "start", [])
+
+    def act(label: str, action: Callable[[], None], title: str) -> None:
+        """Run one on-device action and check that JiveLite drew a popup naming the station."""
+        say(label)
+        mark = ctx.client_log.mark()
+        action()
+        time.sleep(2.5)
+        rows = ctx.client_log.since(mark)
+        if not ctx.client_log.has_player_logging(rows):
+            ctx.skip(f"{label}: popup", "the client's Player debug logging is off, so popups cannot be counted")
+            return
+        n = ctx.client_log.show_brieflys(rows)
+        ctx.check(f"{label}: the client processed a popup", n >= 1, f"{n} showBriefly message(s) for '{title}'")
+
+    def observe(label: str) -> list[str]:
+        names, index, state = _queue_state(ctx)
+        current = names[index] if index is not None and index < len(names) else None
+        ctx.check(f"{label}: queue is {names}", True, f"current {index} ({current}), {state}")
+        return names
+
+    act("Tap station 1 on an empty queue", lambda: _tap_track(ctx, 0, "Radio", r[0]), r[0])
+    _expect_queue(ctx, "tap 1 (idle)", [r[0]], current=0)
+    ctx.verify_playing(r[0], progress=False, current=0)
+    ctx.check_screen("after-tap-1", absent=tuple(MENU_ROWS))
+
+    act("Tap station 2 while station 1 plays", lambda: _tap_track(ctx, 1, "Radio", r[1]), r[1])
+    _expect_queue(ctx, "tap 2", [r[0], r[1]], current=0)
+
+    act("Long press station 3: Play Now (keep queue)", lambda: _long_press_track(ctx, 2, "long-press-3", 0, "Radio", r[2]), r[2])
+    time.sleep(2)
+    names, index, _ = _queue_state(ctx)
+    observe("Play Now (keep queue)")
+    ctx.check("Play Now (keep queue): the new station is playing", index is not None and names[index] == r[2], str(names))
+    ctx.check("Play Now (keep queue): the earlier stations are kept", r[0] in names and r[1] in names, str(names))
+
+    act("Long press station 4: Play Now (replace queue)", lambda: _long_press_track(ctx, 3, "long-press-4", 3, "Radio", r[3]), r[3])
+    _expect_queue(ctx, "Play Now (replace queue)", [r[3]], current=0)
+    ctx.verify_playing(r[3], progress=False, current=0)
+
+    act("Long press station 1: Add to the queue", lambda: _long_press_track(ctx, 0, "long-press-5", 2, "Radio", r[0]), r[0])
+    _expect_queue(ctx, "Add to the queue", [r[3], r[0]], current=0)
+
+    act("Long press station 2: Play Next (keep queue)", lambda: _long_press_track(ctx, 1, "long-press-6", 1, "Radio", r[1]), r[1])
+    _expect_queue(ctx, "Play Next (keep queue)", [r[3], r[1], r[0]], current=0)
+
+    act("Long press station 3: Play Next (replace queue)", lambda: _long_press_track(ctx, 2, "long-press-7", 4, "Radio", r[2]), r[2])
+    time.sleep(2)
+    observe("Play Next (replace queue)")
+
+    names = _queue_state(ctx)[0]
+    say("Opening the queue screen")
+    _open_queue(ctx)
+    ctx.check_screen("queue-screen", present=(*names[:4],))
     ctx.verify_clean(marker, expect_popup=True)

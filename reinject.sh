@@ -211,14 +211,18 @@ echo "--- (end of listing) ---"
 echo ""
 echo "=== Verifying everything landed ==="
 docker exec $CONTAINER python3 -c "import aioslimproto; print('aioslimproto package present')"
-docker exec $CONTAINER grep -c "extra_routes" $ASP_DEST/server.py \
-    || { echo "FAILED: extra_routes marker missing from server.py - patch didn't land"; exit 1; }
-docker exec $CONTAINER grep -c "self.extra_routes" $ASP_DEST/cli.py \
-    || { echo "FAILED: self.extra_routes marker missing from cli.py - patch didn't land"; exit 1; }
-docker exec $CONTAINER grep -c "BrowseLibraryHandler" $SQZ_DEST/provider.py \
-    || { echo "FAILED: BrowseLibraryHandler marker missing from provider.py - patch didn't land"; exit 1; }
-docker exec $CONTAINER grep -c "^# browselibrary.py v" $SQZ_DEST/browselibrary.py \
-    || { echo "FAILED: version marker missing from browselibrary.py - patch didn't land"; exit 1; }
+# Compare a SHA-256 of each source file with the copy in the container: proves every
+# patched file landed byte-for-byte, without relying on markers inside the files.
+verify_landed() {
+    want=$(sha256sum "$1" | cut -d' ' -f1)
+    got=$(docker exec $CONTAINER python3 -c \
+        "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "$2")
+    [ "$want" = "$got" ] \
+        || { echo "FAILED: $2 in the container differs from $1 - patch didn't land"; exit 1; }
+    echo "verified: $(basename "$1")"
+}
+for f in cli.py models.py server.py; do verify_landed "$ASP_SRC/$f" "$ASP_DEST/$f"; done
+for f in provider.py browselibrary.py player.py; do verify_landed "$SQZ_SRC/$f" "$SQZ_DEST/$f"; done
 # sh -c wrapper is required here, not optional: docker exec with no shell
 # does a raw PATH search for a program literally named "test" - in this
 # container that apparently resolves to some installed package's "test"

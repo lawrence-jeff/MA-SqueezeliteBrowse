@@ -57,7 +57,7 @@ This repo holds only `reinject.sh` and this README. `reinject.sh` downloads the 
    ```
    ./reinject.sh
    ```
-   `reinject.sh` auto-detects your Music Assistant container (no need to find/set its name yourself). On first run, since nothing's downloaded yet, it fetches the patch files straight from the `ma-squeezelite-browse` branch of the two forks (no git, no full clone) into `/config/ma-squeezelite-browse`, copies them into the container, verifies each patch landed (it fails loudly if a marker is missing), confirms the provider module still imports cleanly, and restarts the container so Music Assistant picks up the changes.
+   `reinject.sh` auto-detects your Music Assistant container (no need to find/set its name yourself). On first run, since nothing's downloaded yet, it fetches the patch files straight from the `ma-squeezelite-browse` branch of the two forks (no git, no full clone) into `/config/ma-squeezelite-browse`, copies them into the container, verifies each patched file landed in the container by comparing checksums (it fails loudly if any differ), confirms the provider module still imports cleanly, and restarts the container so Music Assistant picks up the changes.
 6. Run `./reinject.sh -update` any time later to re-download and pick up newer patches. Plain `./reinject.sh` never re-downloads on its own - once the files are there, it just re-injects whatever's already downloaded (faster, and works offline).
 
    Consider disabling Music Assistant's Auto Update while you're testing this. An auto-update - or any restart of the app that recreates the container - reverts back to stock (see below) and means running `reinject.sh` again.

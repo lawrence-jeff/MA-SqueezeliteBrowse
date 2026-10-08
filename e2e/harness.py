@@ -17,6 +17,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -338,6 +339,26 @@ class Ctx:
         assert self.result is not None
         check.name = f"{prefix}{check.name}"
         self.result.checks.append(check)
+
+    def check_screen(
+        self, label: str, present: tuple[str, ...] = (), absent: tuple[str, ...] = ()
+    ) -> list[str]:
+        """Screenshot the player, read it with OCR and check what is (and is not) on the screen.
+
+        The screenshot is kept in reports/screens/ as <case id>-<label>.jpg.
+        """
+        import ocr  # noqa: PLC0415
+
+        assert self.ui is not None and self.result is not None
+        folder = Path(__file__).resolve().parent / "reports" / "screens"
+        folder.mkdir(parents=True, exist_ok=True)
+        shot = self.ui.screenshot(folder / f"{self.result.case_id}-{label}.jpg")
+        lines = ocr.read_lines(shot)
+        for wanted in present:
+            self.check(f"{label}: screen shows '{wanted}'", ocr.contains(lines, wanted), f"read: {lines[:14]}")
+        for unwanted in absent:
+            self.check(f"{label}: screen does not show '{unwanted}'", not ocr.contains(lines, unwanted), f"read: {lines[:14]}")
+        return lines
 
     # -- steps
     def begin(self) -> Marker:

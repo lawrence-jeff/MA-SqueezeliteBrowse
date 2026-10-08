@@ -83,3 +83,9 @@ favorite of each type is listed, with a loadable icon. Without the token those c
 `reset` before the cases when `player_host` is set: it checks which player the UI controls from the player id on
 a browse request and switches it through Choose Player if needed (`player_row` in the config is that player's
 row, default 0).
+
+Reading the screen: `ocr.py` runs tesseract over a screenshot (light-on-dark and dark-on-light passes) and
+`Ctx.check_screen(label, present=(...), absent=(...))` asserts what is and is not shown, with a tolerance for the
+odd misread letter. It needs the `tesseract` command (`brew install tesseract`, `apt install tesseract-ocr`) and
+Pillow. The screenshot of every check is kept in `reports/screens/<case id>-<label>.jpg`. Cases using it:
+E2E-17 (list titles) and E2E-20 (the five rows of a long-press menu on the device).

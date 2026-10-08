@@ -409,8 +409,6 @@ def navigate_my_music(ctx: Ctx) -> None:
     if ctx.ui is None or ctx.server_log is None:
         ctx.skip("ui", "needs player_host in the config and the server log")
         return
-    shots = Path(__file__).resolve().parent / "reports" / "screens"
-    shots.mkdir(parents=True, exist_ok=True)
     for label in ("Artists", "Albums", "Playlists", "Radio", "Favorites"):
         started = time.time()
         ctx.ui.open_my_music(label)
@@ -418,7 +416,7 @@ def navigate_my_music(ctx: Ctx) -> None:
             ctx.server_log.since(int(time.time() - started) + 3), ctx.rpc.player_id
         )
         ctx.check(f"{label}: the player requested that list", any(label.lower() in r for r in requests), str(requests))
-        ctx.ui.screenshot(shots / f"{label.lower()}.jpg")
+        ctx.check_screen(f"list-{label.lower()}", present=(label,))
     ctx.ui.press("h")
 
 
@@ -461,3 +459,18 @@ def empty_queue_menu(ctx: Ctx) -> None:
         actionable = [t for t in texts if t in ("Play Now", "Play Next", "Move to End", "Delete item")]
         ctx.check(f"row {index} of an empty queue has no actions", not actionable, str(texts))
         ctx.check(f"row {index} still shows something", bool(texts), "the menu would be an empty window")
+
+
+@case("E2E-20", "Long press on the device shows the five MA rows for a track, album and artist", "Long press > menus")
+def long_press_on_screen(ctx: Ctx) -> None:
+    if ctx.ui is None:
+        ctx.skip("ui", "needs player_host in the config")
+        return
+    for label in ("Tracks", "Albums", "Artists"):
+        ctx.ui.open_my_music(label)
+        ctx.ui.to_top()
+        ctx.ui.long_press()
+        time.sleep(2)
+        ctx.check_screen(label.lower(), present=tuple(MENU_ROWS), absent=("Delete item", "Move to End"))
+        ctx.check(f"{label}: the long press queued nothing", int(ctx.rpc.status().get("playlist_tracks", 0)) == 0)
+        ctx.ui.home()

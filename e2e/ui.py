@@ -70,6 +70,8 @@ class PlayerUi:
 
     def __init__(self, host: str, user: str = "tc") -> None:
         self.target = f"{user}@{host}"
+        self.preset_count = 0  # presets are the first entries of My Music, ahead of Favorites
+        self.preset_counter = None  # optional callable that reads the current number of presets
         self.password = os.environ.get("E2E_PLAYER_PASSWORD", "")
 
     def _ssh(self, command: str, stdin: str | None = None) -> str:
@@ -192,5 +194,6 @@ class PlayerUi:
         self.to_top()
         self.press("right", "enter", settle=2.5)  # My Music is the second home entry
         self.to_top()
-        self.press(*["right"] * self.MY_MUSIC.index(label), settle=0.2)
+        presets = self.preset_counter() if self.preset_counter else self.preset_count
+        self.press(*["right"] * (presets + self.MY_MUSIC.index(label)), settle=0.2)
         self.press("enter", settle=2.0)

@@ -374,23 +374,18 @@ def browse_lists(ctx: Ctx) -> None:
             ctx.add(check_icon(ctx.rpc.base_url, row["icon"]), prefix=f"{mode}: ")
 
 
-@case("E2E-15", "Favorites lists the presets first, with icons", "Favorites")
+@case("E2E-15", "Favorites lists All Favorites and one entry per type, with icons", "Favorites")
 def favorites_menu(ctx: Ctx) -> None:
     rows = ctx.rpc.browse("favorites", 0, 40).get("item_loop", [])
     labels = [r.get("text") for r in rows]
     for needed in ("All Favorites", "Artists", "Albums", "Tracks", "Playlists", "Audiobooks", "Podcasts", "Radio"):
         ctx.check(f"category '{needed}'", needed in labels, str(labels))
+    ctx.check("the presets are not listed here", not any("button" in str(r.get("actions", {}).get("go", {}).get("cmd", "")) for r in rows), str(labels))
     for row in rows[:10]:
         ctx.add(check_icon(ctx.rpc.base_url, row.get("icon")), prefix=f"'{row.get('text')}': ")
-    first_category = labels.index("All Favorites") if "All Favorites" in labels else 0
-    presets = rows[:first_category]
-    if presets:
-        ctx.check("presets come first", all("button" in str(r.get("actions", {}).get("go", {}).get("cmd", "")) for r in presets))
-    else:
-        ctx.skip("presets", "none configured for this player")
 
 
-@case("E2E-16", "The home menu has the Now Playing shortcut and My Music", "Home & navigation")
+@case("E2E-16", "The home menu has Now Playing and My Music, with the presets first in My Music", "Home & navigation")
 def home_menu(ctx: Ctx) -> None:
     rows = ctx.rpc.call("menu", 0, 100).get("item_loop", [])
     by_id = {r.get("id"): r for r in rows}
@@ -401,7 +396,19 @@ def home_menu(ctx: Ctx) -> None:
         bool(now_playing) and now_playing.get("nextWindow") == "nowPlaying",
     )
     ctx.check("My Music present", "myMusic" in by_id)
-    ctx.check("no presets in the My Music list", not any(str(i).startswith("preset_") for i in by_id))
+    mine = [r for r in rows if r.get("node") == "myMusic" and not str(r.get("id", "")).startswith("preset_")]
+    presets = [r for r in rows if str(r.get("id", "")).startswith("preset_")]
+    if not presets:
+        ctx.skip("presets", "none configured for this player")
+        return
+    ctx.check("presets are in My Music", all(p.get("node") == "myMusic" for p in presets))
+    ctx.check(
+        "presets list before every other My Music entry",
+        max(p.get("weight", 0) for p in presets) < min(m.get("weight", 0) for m in mine),
+        f"presets {[p.get('weight') for p in presets]}, ours {sorted(m.get('weight', 0) for m in mine)[:3]}",
+    )
+    for preset in presets:
+        ctx.add(check_icon(ctx.rpc.base_url, preset.get("icon")), prefix=f"preset '{preset.get('text')}': ")
 
 
 @case("E2E-17", "Keyboard navigation opens each My Music list", "Home & navigation > My Music")

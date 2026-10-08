@@ -65,6 +65,13 @@ def build_ctx(config: dict, args: argparse.Namespace) -> Ctx:
         from ui import PlayerUi
 
         ui = PlayerUi(config["player_host"])
+        # The presets are the first entries of My Music; the key navigation steps over however many
+        # the server lists (counted before each navigation, since saving the player's config changes them).
+        def count_presets() -> int:
+            menu = rpc.call("menu", 0, 100).get("item_loop", [])
+            return sum(1 for row in menu if str(row.get("id", "")).startswith("preset_"))
+
+        ui.preset_counter = count_presets
     ma = None
     if os.environ.get("E2E_MA_TOKEN"):
         ma = MaApi(urlparse(config["server_url"]).hostname or "", os.environ["E2E_MA_TOKEN"])

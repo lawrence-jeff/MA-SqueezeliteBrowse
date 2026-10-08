@@ -58,3 +58,9 @@ The screenshot lands in `/tmp/jivelite*.bmp` on the player.
     printf 'd 42\nd 31\ns 100\nu 31\nu 42\n' | ssh tc@<player> 'sudo /tmp/vkbd'   # Shift+S
 
 Nothing is installed permanently: /tmp and the loaded module disappear on the player's next reboot.
+
+`ui.py` wraps this (`PlayerUi.press`, `hold`, `screenshot`; set `E2E_PLAYER_PASSWORD` or use an ssh key).
+JiveLite's own log shows only network and menu-sync events, not which screen is open. To tell which
+menu the player is on, use `ServerLog.browse_requests`, which reads the `browselibrary` request
+each screen sends, or take a screenshot. Arrow keys move the highlight, Enter or `l` opens an item,
+`j` goes back (the Left arrow does not), `h` is home.

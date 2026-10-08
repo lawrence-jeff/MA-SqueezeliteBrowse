@@ -194,6 +194,21 @@ class ServerLog:
         return [ln for ln in out.splitlines() if "alarms 0 99" not in ln]
 
     @staticmethod
+    def browse_requests(lines: list[str], player_id: str) -> list[str]:
+        """The menus the client opened, e.g. "mode:artists" or "item_id:album-14", oldest first.
+
+        Each screen JiveLite opens sends one `browselibrary items` request; its mode and item_id
+        say which menu it was, so the server log tells what the player is showing.
+        """
+        found = []
+        for line in lines:
+            if "Handling request" not in line or player_id not in line or "'browselibrary'" not in line:
+                continue
+            params = re.findall(r"'((?:mode|item_id|menu_id|sub):[^']*)'", line)
+            found.append(" ".join(params) or "browselibrary")
+        return found
+
+    @staticmethod
     def problems(lines: list[str]) -> list[str]:
         found = []
         for line in lines:

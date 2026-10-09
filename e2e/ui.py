@@ -166,6 +166,15 @@ class PlayerUi:
 
     def ensure_home(self, tries: int = 4) -> None:
         """Get to the home screen from wherever the device is, checking the screen each time."""
+        try:
+            import ocr  # noqa: PLC0415
+
+            folder = Path(__file__).resolve().parent / "reports" / "screens"
+            folder.mkdir(parents=True, exist_ok=True)
+            start = self.screenshot(folder / "reset-start.jpg")  # before any key, to see where the device was left
+            say(f"Screen before resetting: {ocr.read_lines(start)[:6]}")
+        except ImportError:
+            pass
         for attempt in range(tries):
             self.press(*["j"] * (3 * attempt), settle=0.4) if attempt else None
             self.home()

@@ -169,8 +169,8 @@ def track_while_playing(ctx: Ctx) -> None:
 
 @case(
     "E2E-03",
-    "Album: Play All from the second track queues the album and starts there",
-    "Single press > Album tracks > Play All from here",
+    "Album: Play Album from here on the second track queues the album and starts there",
+    "Single press > Album tracks > Play Album from here",
     ("album",),
 )
 def album_play_all(ctx: Ctx) -> None:
@@ -731,3 +731,48 @@ def build_radio_queue(ctx: Ctx) -> None:
     _open_queue(ctx)
     ctx.check_screen("queue-screen", present=(*names[:4],))
     ctx.verify_clean(marker, expect_popup=True)
+
+
+@case(
+    "E2E-23",
+    "A song inside an album offers Play Album from here on a long press, and it starts at that song",
+    "Long press > album tracks",
+)
+def play_album_from_here(ctx: Ctx) -> None:
+    if ctx.ui is None or ctx.ma is None:
+        ctx.skip("setup", "needs player_host and E2E_MA_TOKEN")
+        return
+    album_id = str(ctx.media["album_big"]["params"]["album_id"])
+    albums = ctx.rpc.browse("albums", 0, 500).get("item_loop", [])
+    grid_index = next(
+        (i for i, row in enumerate(albums) if str(row.get("commonParams", {}).get("album_id")) == album_id), None
+    )
+    songs = [str(r["text"]).splitlines()[0] for r in ctx.rpc.browse("tracks", 0, 200, album_id=album_id).get("item_loop", [])]
+    if grid_index is None or len(songs) < 3:
+        ctx.skip("setup", "the big album is not in the Albums list or has fewer than 3 songs")
+        return
+    pick = 2
+    # An existing queue, so the position of the chosen song must be worked out after it.
+    ctx.rpc.play_control(cmd="add", **ctx.media["track"]["params"])
+    _expect_queue(ctx, "start", [ctx.media["track"]["name"]], current=0)
+
+    ctx.ui.open_my_music("Albums")
+    ctx.ui.to_top()
+    if grid_index:
+        ctx.ui.press(*["right"] * grid_index, settle=0.2)
+    say(f"Opening the album '{ctx.media['album_big']['name']}'")
+    ctx.ui.press("enter", settle=3.0)
+    ctx.ui.to_top()
+    ctx.ui.press(*["down"] * pick, settle=0.3)
+    ctx.ui.long_press()
+    time.sleep(0.5)
+    shot = ctx.snap("album-song-long-press")
+    time.sleep(1.5)
+    say("Choosing 'Play Album from here' (the last row)")
+    ctx.ui.press(*["down"] * 5, settle=0.3)
+    ctx.ui.press("enter", settle=3.0)
+    ctx.check_snap(shot, "album-song-long-press", present=(*MENU_ROWS, "Play Album from here"))
+
+    names, index, state = _queue_state(ctx)
+    ctx.check("the album was queued after the existing item", names[:1] == [ctx.media["track"]["name"]] and songs[0] in names, str(names[:4]))
+    ctx.check(f"playing '{songs[pick]}' (position {pick + 1} of the album)", index is not None and names[index] == songs[pick], f"index {index} on {names[index] if index is not None and index < len(names) else None!r}, state {state}")

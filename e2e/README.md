@@ -102,3 +102,10 @@ engine for this (here the Home Assistant one); the announcement uses Music Assis
 Following a run: everything the run prints (what it is navigating to, each press, every check as it is recorded) is also written to
 `e2e/reports/live.log`, replaced at the start of each run. Open that file in VS Code, or `tail -f e2e/reports/live.log`, to watch a
 run that was started from somewhere else (for example by an assistant in the background).
+
+Starting a session (`PlayerUi.start_from_home`, called by the runner's reset): announce "Beginning automated testing",
+take a screenshot of where the device was left (`reports/screens/reset-start.jpg`), wait 3 seconds, send `h`, wait 1 second,
+send `h`, take another screenshot (`reset-end.jpg`) and check with OCR that My Music, Choose Player and Quit are showing.
+If not, the run stops (exit code 3, announced on the player) and `reports/screens/reset-failure.json` records the text read
+from both screenshots and their paths. No key is ever sent within 3 seconds of a screenshot, since JiveLite drops keys while
+it saves one; `h` also dismisses a screensaver.

@@ -531,7 +531,6 @@ def _long_press_track(
     ctx.ui.long_press()
     time.sleep(0.5)
     shot = ctx.snap(label)
-    time.sleep(1.5)  # JiveLite drops key presses while it is still saving the screenshot
     if choose:
         ctx.ui.press(*["down"] * choose, settle=0.3)
     ctx.ui.press("enter", settle=3.0)
@@ -552,7 +551,6 @@ def _queue_row_menu(ctx: Ctx, label: str, row: int, present: tuple[str, ...], ab
     ctx.ui.long_press()
     time.sleep(0.5)
     shot = ctx.snap(label)
-    time.sleep(1.5)  # JiveLite drops key presses while it is still saving the screenshot
     order = [text for text in ("Play Now", "Play Next", "Move to End", "Delete item") if text in present]
     position = order.index(choose)
     if position:

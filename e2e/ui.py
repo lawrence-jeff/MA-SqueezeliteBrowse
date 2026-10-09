@@ -66,11 +66,16 @@ def _to_jpeg(source: Path, dest: Path, quality: int = 80) -> None:
         image.convert("RGB").save(dest, "JPEG", quality=quality, optimize=True)
 
 
+class HomeNotReached(RuntimeError):
+    """The device did not end up on the home screen when a session started."""
+
+
 class PlayerUi:
     """Send key presses and take screenshots. The password comes from E2E_PLAYER_PASSWORD."""
 
     def __init__(self, host: str, user: str = "tc") -> None:
         self.target = f"{user}@{host}"
+        self._shot_at = 0.0  # when the last screenshot key was sent
         self.preset_count = 0  # presets are the first entries of My Music, ahead of Favorites
         self.preset_counter = None  # optional callable that reads the current number of presets
         self.password = os.environ.get("E2E_PLAYER_PASSWORD", "")
@@ -98,7 +103,13 @@ class PlayerUi:
         subprocess.run([*prefix, "scp", "-q", str(binary), f"{self.target}:/tmp/vkbd"], check=True)
         self._ssh("chmod +x /tmp/vkbd; sudo modprobe uinput")
 
+    # JiveLite drops key presses for a couple of seconds while it saves a screenshot.
+    SETTLE_AFTER_SHOT = 3.0
+
     def keys(self, script: str) -> None:
+        wait = self.SETTLE_AFTER_SHOT - (time.time() - self._shot_at)
+        if wait > 0:
+            time.sleep(wait)
         self.ensure_ready()
         self._ssh("sudo /tmp/vkbd", script)
 
@@ -130,6 +141,7 @@ class PlayerUi:
         for _ in range(3):
             self._ssh("sudo rm -f /tmp/jivelite*.bmp")
             self.keys(f"d {KEYS['shift']}\nd {KEYS['s']}\ns 100\nu {KEYS['s']}\nu {KEYS['shift']}\ns 800\n")
+            self._shot_at = time.time()
             for _ in range(8):
                 name = self._ssh("ls -t /tmp/jivelite*.bmp 2>/dev/null | head -1").strip()
                 if name:
@@ -149,43 +161,51 @@ class PlayerUi:
         return dest
 
     def home(self) -> None:
-        """Back out of any menu or popup and land on the home screen."""
-        # The first key press only wakes a sleeping screen and is swallowed, so back out a few times.
-        self.press("j", "j", "j", settle=0.4)
-        # Five homes: from a deep screen (My Music > Albums > an album > a song's long-press menu)
-        # the first ones are used up closing the popup and the windows above home.
-        self.press(*["h"] * 5, settle=0.5)
-        time.sleep(1.0)
+        """Go to the home screen: h, a second's wait, h again (h also dismisses a screensaver)."""
+        self.press("h", settle=1.0)
+        self.press("h", settle=0.5)
 
-    def on_home(self) -> bool | None:
-        """Whether the home screen is showing, read from a screenshot (None if OCR is not available)."""
-        try:
-            import ocr  # noqa: PLC0415
-        except ImportError:
-            return None
-        with tempfile.TemporaryDirectory() as tmp:
-            lines = ocr.read_lines(self.screenshot(Path(tmp) / "home.jpg"))
-        return all(ocr.contains(lines, word) for word in ("My Music", "Choose Player", "Quit"))
+    HOME_WORDS = ("My Music", "Choose Player", "Quit")
 
-    def ensure_home(self, tries: int = 4) -> None:
-        """Get to the home screen from wherever the device is, checking the screen each time."""
-        try:
-            import ocr  # noqa: PLC0415
+    def start_from_home(self, expect: tuple[str, ...] = HOME_WORDS) -> None:
+        """
+        Start a session from the home screen, and stop with the evidence if that does not work.
 
-            folder = Path(__file__).resolve().parent / "reports" / "screens"
-            folder.mkdir(parents=True, exist_ok=True)
-            start = self.screenshot(folder / "reset-start.jpg")  # before any key, to see where the device was left
-            say(f"Screen before resetting: {ocr.read_lines(start)[:6]}")
-        except ImportError:
-            pass
-        for attempt in range(tries):
-            self.press(*["j"] * (3 * attempt), settle=0.4) if attempt else None
-            self.home()
-            state = self.on_home()
-            if state is None or state:
-                return
-            say("Not on the home screen yet, backing out again")
-        raise RuntimeError("could not get the device to the home screen")
+        Screenshot, wait 3 seconds, h, wait 1 second, h, screenshot, then OCR checks that the home
+        screen is showing. If it is not, the two screenshots and what was read from them are saved
+        in reports/screens/ (reset-failure.json) and HomeNotReached is raised.
+        """
+        import json  # noqa: PLC0415
+
+        import ocr  # noqa: PLC0415
+
+        folder = Path(__file__).resolve().parent / "reports" / "screens"
+        folder.mkdir(parents=True, exist_ok=True)
+        say("Start: taking a screenshot of where the device was left")
+        start = self.screenshot(folder / "reset-start.jpg")
+        start_lines = ocr.read_lines(start)
+        say(f"Screen before going home: {start_lines[:6]}")
+        say("Waiting 3 seconds, then h, 1 second, h")
+        time.sleep(3.0)
+        self.press("h", settle=1.0)
+        self.press("h", settle=0.5)
+        end = self.screenshot(folder / "reset-end.jpg")
+        end_lines = ocr.read_lines(end)
+        if all(ocr.contains(end_lines, word) for word in expect):
+            say("On the home screen")
+            return
+        record = {
+            "when": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "expected_on_screen": list(expect),
+            "start_screenshot": str(start),
+            "start_text": start_lines,
+            "end_screenshot": str(end),
+            "end_text": end_lines,
+        }
+        (folder / "reset-failure.json").write_text(json.dumps(record, indent=2))
+        raise HomeNotReached(
+            f"did not reach the home screen; saved {folder / 'reset-failure.json'} with the start and end screenshots"
+        )
 
     def choose_player(self, row: int) -> None:
         """Home > Choose Player > the player in this row (the list order is fixed by JiveLite)."""
@@ -203,7 +223,7 @@ class PlayerUi:
         The player the UI controls survives reboots, so it is checked by the player id on the
         requests a browse sends, and switched through Choose Player if it is the wrong one.
         """
-        self.ensure_home()
+        self.start_from_home()
         for attempt in range(3):
             self.open_my_music("Favorites")
             seen = server_log.browse_player(server_log.since(25))  # type: ignore[attr-defined]

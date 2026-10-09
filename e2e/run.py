@@ -26,6 +26,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import cases  # noqa: E402
+from ui import HomeNotReached  # noqa: E402
 from harness import (  # noqa: E402
     FAIL,
     Check,
@@ -275,7 +276,13 @@ def main() -> int:
         speak(ctx, "Beginning automated testing", config.get("announce_volume"))
     if ctx.ui is not None and ctx.server_log is not None:
         print("Resetting the player UI to home...")
-        ctx.ui.reset(ctx.server_log, config["player_id"], int(config.get("player_row", 0)))
+        try:
+            ctx.ui.reset(ctx.server_log, config["player_id"], int(config.get("player_row", 0)))
+        except HomeNotReached as err:
+            print(f"STOPPED: {err}", flush=True)
+            if not args.no_announce:
+                speak(ctx, "Automated testing stopped. The device did not reach the home screen", config.get("announce_volume"))
+            return 3
     original_volume = ctx.rpc.mixer("volume")
     if args.silent:
         # Volume 0 is the reliable way to silence a Squeezelite player. The protocol's mute

@@ -211,6 +211,26 @@ def announce(ctx: Ctx, results: list[CaseResult], volume: int | None) -> None:
     speak(ctx, message, volume)
 
 
+class Tee:
+    """Write everything printed to the terminal to a file as well, so it can be watched in an editor."""
+
+    def __init__(self, stream: object, path: Path) -> None:
+        path.parent.mkdir(exist_ok=True)
+        self.stream = stream
+        self.file = path.open("w", buffering=1)
+
+    def write(self, text: str) -> int:
+        self.file.write(text)
+        return self.stream.write(text)  # type: ignore[attr-defined,no-any-return]
+
+    def flush(self) -> None:
+        self.file.flush()
+        self.stream.flush()  # type: ignore[attr-defined]
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self.stream, name)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--config", default=str(HERE / "config.json"))
@@ -225,6 +245,8 @@ def main() -> int:
     parser.add_argument("--no-server-log", action="store_true")
     parser.add_argument("-v", "--verbose", action="store_true", help="show passing checks too")
     args = parser.parse_args()
+    # A fixed file in the workspace: open it in VS Code to follow a run that was started elsewhere.
+    sys.stdout = Tee(sys.stdout, HERE / "reports" / "live.log")  # type: ignore[assignment]
 
     if args.list:
         for c in cases.CASES:

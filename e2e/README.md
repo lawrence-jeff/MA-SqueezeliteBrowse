@@ -98,3 +98,7 @@ long-press menu (Delete item, Move to End, Play Next) and finally Clear queue. I
 A run starts by saying "Beginning automated testing" on the player, so nobody uses the device while it runs, and at the end the result is spoken on the player ("Testing complete with 3 issues") through Music Assistant's
 announcement feature, when `E2E_MA_TOKEN` is set; `--no-announce` turns it off. Music Assistant needs a text-to-speech
 engine for this (here the Home Assistant one); the announcement uses Music Assistant's own announcement volume setting (set `announce_volume` in the config to override it; Music Assistant may then leave the volume at that level).
+
+Following a run: everything the run prints (what it is navigating to, each press, every check as it is recorded) is also written to
+`e2e/reports/live.log`, replaced at the start of each run. Open that file in VS Code, or `tail -f e2e/reports/live.log`, to watch a
+run that was started from somewhere else (for example by an assistant in the background).

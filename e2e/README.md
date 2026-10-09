@@ -95,6 +95,6 @@ E2E-21 is the long scenario: with an empty queue it adds tracks with taps and lo
 Assistant API, skips through every track with Next, jumps with Play Now, then uses the queue screen's
 long-press menu (Delete item, Move to End, Play Next) and finally Clear queue. It takes about 10 minutes.
 
-At the end of a run the result is spoken on the player ("Testing complete with 3 issues") through Music Assistant's
+A run starts by saying "Beginning automated testing" on the player, so nobody uses the device while it runs, and at the end the result is spoken on the player ("Testing complete with 3 issues") through Music Assistant's
 announcement feature, when `E2E_MA_TOKEN` is set; `--no-announce` turns it off. Music Assistant needs a text-to-speech
 engine for this (here the Home Assistant one); the announcement uses Music Assistant's own announcement volume setting (set `announce_volume` in the config to override it; Music Assistant may then leave the volume at that level).

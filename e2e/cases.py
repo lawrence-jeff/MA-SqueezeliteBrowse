@@ -768,10 +768,9 @@ def play_album_from_here(ctx: Ctx) -> None:
     time.sleep(0.5)
     shot = ctx.snap("album-song-long-press")
     time.sleep(1.5)
-    say("Choosing 'Play Album from here' (the last row)")
-    ctx.ui.press(*["down"] * 5, settle=0.3)
+    say("Choosing 'Play Album from here' (the first row)")
     ctx.ui.press("enter", settle=3.0)
-    ctx.check_snap(shot, "album-song-long-press", present=(*MENU_ROWS, "Play Album from here"))
+    ctx.check_snap(shot, "album-song-long-press", present=("Play Album from here", *MENU_ROWS))
 
     names, index, state = _queue_state(ctx)
     ctx.check("the album was queued after the existing item", names[:1] == [ctx.media["track"]["name"]] and songs[0] in names, str(names[:4]))

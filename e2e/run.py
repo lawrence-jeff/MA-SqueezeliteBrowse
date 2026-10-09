@@ -188,22 +188,27 @@ def write_reports(results: list[CaseResult], config: dict) -> Path:
     return path
 
 
-def announce(ctx: Ctx, results: list[CaseResult], volume: int | None) -> None:
-    """Speak the outcome on the player through Music Assistant's announcement feature (text to speech)."""
+def speak(ctx: Ctx, message: str, volume: int | None) -> None:
+    """Speak a message on the player through Music Assistant's announcement feature (text to speech)."""
     if ctx.ma is None:
         return
+    try:
+        extra = {"volume_level": volume} if volume is not None else {}
+        ctx.ma.call("players/cmd/play_announcement", player_id=ctx.rpc.player_id, message=message, **extra)
+        print(f"Announced on the player: {message}", flush=True)
+    except Exception as err:  # noqa: BLE001 - an announcement problem must not change the test result
+        print(f"Could not announce ({err})", flush=True)
+
+
+def announce(ctx: Ctx, results: list[CaseResult], volume: int | None) -> None:
+    """Speak the outcome of the run."""
     issues = sum(1 for result in results for check in result.checks if check.status == FAIL)
     issues += sum(1 for result in results if result.error)
     if issues == 0:
         message = "Testing complete with no issues"
     else:
         message = f"Testing complete with {issues} issue{'s' if issues != 1 else ''}"
-    try:
-        extra = {"volume_level": volume} if volume is not None else {}
-        ctx.ma.call("players/cmd/play_announcement", player_id=ctx.rpc.player_id, message=message, **extra)
-        print(f"Announced on the player: {message}")
-    except Exception as err:  # noqa: BLE001 - an announcement problem must not change the test result
-        print(f"Could not announce the result ({err})")
+    speak(ctx, message, volume)
 
 
 def main() -> int:
@@ -243,6 +248,9 @@ def main() -> int:
             print("Aborted.")
             return 2
 
+    if not args.no_announce:
+        # So whoever is near the device knows to leave it alone until the run has finished.
+        speak(ctx, "Beginning automated testing", config.get("announce_volume"))
     if ctx.ui is not None and ctx.server_log is not None:
         print("Resetting the player UI to home...")
         ctx.ui.reset(ctx.server_log, config["player_id"], int(config.get("player_row", 0)))

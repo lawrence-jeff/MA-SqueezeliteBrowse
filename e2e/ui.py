@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import tempfile
 import time
 from pathlib import Path
 
@@ -149,8 +150,30 @@ class PlayerUi:
 
     def home(self) -> None:
         """Back out of any menu or popup and land on the home screen."""
-        self.press("j", "j", settle=0.6)
+        # The first key press only wakes a sleeping screen and is swallowed, so back out a few times.
+        self.press("j", "j", "j", settle=0.5)
         self.press("h", "h", settle=1.5)
+
+    def on_home(self) -> bool | None:
+        """Whether the home screen is showing, read from a screenshot (None if OCR is not available)."""
+        try:
+            import ocr  # noqa: PLC0415
+        except ImportError:
+            return None
+        with tempfile.TemporaryDirectory() as tmp:
+            lines = ocr.read_lines(self.screenshot(Path(tmp) / "home.jpg"))
+        return all(ocr.contains(lines, word) for word in ("My Music", "Choose Player", "Quit"))
+
+    def ensure_home(self, tries: int = 4) -> None:
+        """Get to the home screen from wherever the device is, checking the screen each time."""
+        for attempt in range(tries):
+            self.press(*["j"] * (3 * attempt), settle=0.4) if attempt else None
+            self.home()
+            state = self.on_home()
+            if state is None or state:
+                return
+            say("Not on the home screen yet, backing out again")
+        raise RuntimeError("could not get the device to the home screen")
 
     def choose_player(self, row: int) -> None:
         """Home > Choose Player > the player in this row (the list order is fixed by JiveLite)."""
@@ -168,6 +191,7 @@ class PlayerUi:
         The player the UI controls survives reboots, so it is checked by the player id on the
         requests a browse sends, and switched through Choose Player if it is the wrong one.
         """
+        self.ensure_home()
         for attempt in range(3):
             self.open_my_music("Favorites")
             seen = server_log.browse_player(server_log.since(25))  # type: ignore[attr-defined]

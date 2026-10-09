@@ -109,3 +109,9 @@ send `h`, take another screenshot (`reset-end.jpg`) and check with OCR that My M
 If not, the run stops (exit code 3, announced on the player) and `reports/screens/reset-failure.json` records the text read
 from both screenshots and their paths. No key is ever sent within 3 seconds of a screenshot, since JiveLite drops keys while
 it saves one; `h` also dismisses a screensaver.
+
+Keys differ between grids and lists. In a grid (My Music, Albums, Tracks, Radio ...) Right moves the highlight to the next
+entry and Up moves back. In a text list (an album's songs, the queue, a long-press menu, Choose Player) Right means "go",
+i.e. it selects the highlighted row, so use Down to move. A Right pressed by mistake in a list starts or chooses something:
+once it chose "Play Now (keep queue)" on a one-song album. A long press is Enter held for 3.5 seconds and, once the menu is
+open, nothing more is sent unless a case is meant to choose a row.

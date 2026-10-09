@@ -151,8 +151,11 @@ class PlayerUi:
     def home(self) -> None:
         """Back out of any menu or popup and land on the home screen."""
         # The first key press only wakes a sleeping screen and is swallowed, so back out a few times.
-        self.press("j", "j", "j", settle=0.5)
-        self.press("h", "h", settle=1.5)
+        self.press("j", "j", "j", settle=0.4)
+        # Five homes: from a deep screen (My Music > Albums > an album > a song's long-press menu)
+        # the first ones are used up closing the popup and the windows above home.
+        self.press(*["h"] * 5, settle=0.5)
+        time.sleep(1.0)
 
     def on_home(self) -> bool | None:
         """Whether the home screen is showing, read from a screenshot (None if OCR is not available)."""

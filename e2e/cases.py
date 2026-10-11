@@ -1044,3 +1044,19 @@ def artist_view(ctx: Ctx) -> None:
         ctx.check(f"matching radio stations are listed ({with_radio[0]})", True)
     else:
         ctx.skip("radio stations", "no library station has an artist's name in it")
+
+
+@case(
+    "E2E-29",
+    "An item Music Assistant cannot play shows a message on the device instead of doing nothing",
+    "Single press > any item that cannot be played",
+)
+def cannot_play_message(ctx: Ctx) -> None:
+    before = ctx.rpc.queue()[1]
+    marker = ctx.begin()
+    # the command a tap sends, for a station that is not in the library
+    ctx.rpc.call("playlistcontrol", "uri:library://radio/99999", "cmd:add", "menu:1")
+    ctx.check("nothing was added to the queue", ctx.rpc.queue()[1] == before, f"{before} -> {ctx.rpc.queue()[1]}")
+    # the client processed a popup (it fails with a Lua error when the popup has no icon)
+    ctx.verify_clean(marker, expect_popup=True)
+

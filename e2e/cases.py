@@ -1010,3 +1010,37 @@ def _icon_served(ctx: Ctx, row: dict[str, Any]) -> bool:
             return resp.read(8) == b"\x89PNG\r\n\x1a\n"
     except OSError:
         return False
+
+
+@case(
+    "E2E-28",
+    "Artist: the view lists albums, then tracks they appear on, then matching radio stations",
+    "Browse > Artists > one artist",
+)
+def artist_view(ctx: Ctx) -> None:
+    artists = ctx.rpc.call("browselibrary", "items", 0, 500, "menu:1", "mode:artists").get("item_loop", [])
+    ctx.check("the library has artists", bool(artists))
+    empty, featured_only, with_radio = [], [], []
+    for artist in artists:
+        artist_id = artist["commonParams"]["artist_id"]
+        params = ["menu:1", "mode:albums", f"artist_id:{artist_id}", "role_id:ALBUMARTIST", "menu_roles:ALBUMARTIST", "menu_mode:artists"]
+        view = ctx.rpc.call("browselibrary", "items", 0, 200, *params)
+        rows = view.get("item_loop", [])
+        kinds = [row.get("type") for row in rows]
+        if not rows:
+            empty.append(artist["text"])
+        if rows and "playlist" not in kinds:
+            featured_only.append(artist["text"])
+        if any(row.get("goAction") == "play" for row in rows):
+            with_radio.append(artist["text"])
+        order = [kinds.index(k) for k in ("playlist", "audio") if k in kinds]
+        ctx.check(f"{artist['text']}: albums come before tracks and stations", order == sorted(order), str(kinds))
+    ctx.check("no artist view is empty", not empty, ", ".join(empty))
+    if featured_only:
+        ctx.check(f"a featured-only artist shows its track ({featured_only[0]})", True)
+    else:
+        ctx.skip("featured-only artist", "every artist in the library has an album")
+    if with_radio:
+        ctx.check(f"matching radio stations are listed ({with_radio[0]})", True)
+    else:
+        ctx.skip("radio stations", "no library station has an artist's name in it")

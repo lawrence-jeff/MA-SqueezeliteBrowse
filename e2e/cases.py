@@ -910,6 +910,25 @@ def _row_title(row: dict[str, Any]) -> str:
     "Settings > HA Extras (Cameras, Dashboards, Controls, Scenes and Scripts, Status)",
 )
 def ha_extras(ctx: Ctx) -> None:
+    if ctx.ma is None:
+        ctx.skip("setup", "needs E2E_MA_TOKEN to tick the device setting")
+        return
+    player_id = ctx.rpc.player_id
+    values = ctx.ma.call("config/players/get", player_id=player_id)["values"]
+    original = values.get("expose_ha_extras", {}).get("value", False)
+    try:
+        ctx.ma.call("config/players/save", player_id=player_id, values={"expose_ha_extras": False})
+        menu = ctx.rpc.call("menu", 0, 100).get("item_loop", [])
+        ctx.check("setting off: the entry is not in the menu", all(r.get("id") != "settingsHaExtras" for r in menu))
+        reply = ctx.rpc.call("haextras", "items", 0, 100, "panel:controls")
+        ctx.check("setting off: a request is refused", "not enabled" in str(reply), str(reply)[:120])
+        ctx.ma.call("config/players/save", player_id=player_id, values={"expose_ha_extras": True})
+        _ha_extras_enabled(ctx)
+    finally:
+        ctx.ma.call("config/players/save", player_id=player_id, values={"expose_ha_extras": original})
+
+
+def _ha_extras_enabled(ctx: Ctx) -> None:
     menu = ctx.rpc.call("menu", 0, 100).get("item_loop", [])
     entry = next((row for row in menu if row.get("id") == "settingsHaExtras"), None)
     if entry is None:

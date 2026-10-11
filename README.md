@@ -75,6 +75,8 @@ Things here go beyond browsing and playing music. They are experiments to see wh
 
 An **HA Extras** entry under Settings (with a Home Assistant icon) shows Home Assistant entities on the device. It uses Music Assistant's own Home Assistant plugin for the connection and login, so there is nothing to configure, and it does not appear when that plugin is not set up.
 
+HA Extras is off by default. To turn it on for a device, tick **Expose HA Entities to Device (HA Extras)** in that player's settings in Music Assistant, then restart the device so it reloads its menu. Devices without it ticked get no entry and their requests are refused.
+
 Only entities that carry the Home Assistant **label** named `HA Extras` are shown or controllable. Create the label in Home Assistant (Settings > Areas, labels & zones > Labels) and add it to the entities you want to make visible or controllable. HA Extras has these panels:
 
 - **Cameras**: choosing a camera shows a snapshot full screen in the Image Viewer. It fetches a new snapshot about every 10 seconds (the Image Viewer's delay setting) until you press a key.

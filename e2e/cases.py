@@ -800,3 +800,51 @@ def power_on_resumes(ctx: Ctx) -> None:
         ctx.check("the queued track resumed", wait_until(lambda: ctx.rpc.status().get("mode") == "play", timeout=15), f"mode {ctx.rpc.status().get('mode')}")
     finally:
         ctx.ma.call("config/players/save", player_id=player_id, values={"auto_play": original})
+
+
+@case(
+    "E2E-25",
+    "A rebooted player comes back powered on, and plays its queue only when 'Automatically play' is on",
+    "Power > reboot with a queue",
+)
+def reboot_power_on(ctx: Ctx) -> None:
+    if ctx.ui is None or ctx.ma is None:
+        ctx.skip("setup", "needs player_host and E2E_MA_TOKEN")
+        return
+    player_id = ctx.rpc.player_id
+    original = ctx.ma.call("config/players/get", player_id=player_id)["values"]["auto_play"]["value"]
+
+    def connected_and_on() -> bool:
+        try:
+            ids = {p.get("playerid") for p in ctx.rpc.players()}
+            return player_id in ids and ctx.rpc.call("power", "?").get("_power") == 1
+        except Exception:  # noqa: BLE001 - the server answers oddly while the player is away
+            return False
+
+    try:
+        for ticked in (False, True):
+            label = "ticked" if ticked else "unticked"
+            ctx.ma.call("config/players/save", player_id=player_id, values={"auto_play": ticked})
+            ctx.rpc.clear()
+            time.sleep(2)
+            ctx.rpc.play_control(cmd="add", **ctx.media["track"]["params"])
+            time.sleep(5)
+            ctx.rpc.call("stop")
+            say(f"Letting Music Assistant save the queue (60 s), then rebooting with 'Automatically play' {label}")
+            time.sleep(60)
+            ctx.ui.reboot()
+            time.sleep(15)  # until the player has actually gone away
+            came_back = wait_until(connected_and_on, timeout=150, interval=5)
+            ctx.check(f"{label}: the player came back powered on", came_back)
+            if ticked:
+                playing = wait_until(lambda: ctx.rpc.status().get("mode") == "play", timeout=60, interval=3)
+                ctx.check(f"{label}: it started playing its queue", playing)
+            else:
+                time.sleep(20)
+                mode = ctx.rpc.status().get("mode")
+                ctx.check(f"{label}: it did not start playing", mode != "play", f"mode {mode}")
+            queued = int(ctx.rpc.status().get("playlist_tracks", 0))
+            ctx.check(f"{label}: the queue is still there", queued == 1, f"{queued} item(s)")
+    finally:
+        ctx.ma.call("config/players/save", player_id=player_id, values={"auto_play": original})
+        ctx.rpc.call("stop")

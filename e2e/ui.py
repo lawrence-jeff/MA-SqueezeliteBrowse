@@ -106,6 +106,10 @@ class PlayerUi:
     # JiveLite drops key presses for a couple of seconds while it saves a screenshot.
     SETTLE_AFTER_SHOT = 3.0
 
+    def reboot(self) -> None:
+        """Reboot the player (what a power cycle does); it reconnects to the server by itself."""
+        self._ssh("sudo reboot")
+
     def keys(self, script: str) -> None:
         wait = self.SETTLE_AFTER_SHOT - (time.time() - self._shot_at)
         if wait > 0:

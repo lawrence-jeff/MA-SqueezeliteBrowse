@@ -56,7 +56,9 @@ def _first_line(text: str) -> str:
 
 
 def _rows(rpc: Rpc, mode: str, quantity: int = 40, **tags: Any) -> list[dict[str, Any]]:
-    return rpc.browse(mode, 0, quantity, **tags).get("item_loop", [])
+    """The rows of a browse list, without the items shown as (offline): they cannot be played."""
+    rows = rpc.browse(mode, 0, quantity, **tags).get("item_loop", [])
+    return [row for row in rows if not row.get("unavailable")]
 
 
 def _pick(rows: list[dict[str, Any]], needle: str | None, key: str) -> list[dict[str, Any]]:
@@ -1102,6 +1104,9 @@ def provider_off_and_on(ctx: Ctx) -> None:
     configs = [c for c in ctx.ma.call("config/providers") or [] if c.get("domain") == domain]
     if not configs:
         ctx.skip("provider", f"the {domain} provider is not set up")
+        return
+    if configs[0].get("last_error"):
+        ctx.skip("provider", f"the {domain} provider is not available right now: {configs[0]['last_error']}")
         return
     instance = configs[0]["instance_id"]
     was_enabled = bool(configs[0].get("enabled", True))

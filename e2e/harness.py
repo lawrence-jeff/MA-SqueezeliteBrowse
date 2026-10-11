@@ -31,6 +31,16 @@ SERVER_LOG_NOISE = (
     "Error unloading player",
     "Invalid command: sendspin",
 )
+# Tracebacks that are expected or come from outside the Squeezelite provider (a music web service that
+# is down, a Chromecast being unloaded, the station that E2E-29 asks for on purpose): not counted as
+# problems.
+HARMLESS_TRACEBACK_MARKERS = (
+    "radios.exceptions",
+    "RadioBrowser",
+    "pychromecast",
+    "providers/chromecast/",
+    "not found in library: 99999",
+)
 # Client Lua errors that are known product issues: reported as warnings, not failures.
 KNOWN_CLIENT_ERRORS = {
     "Player.lua:271: attempt to index": (
@@ -304,13 +314,28 @@ class ServerLog:
         return found
 
     @staticmethod
+    def _traceback_block(lines: list[str], start: int) -> str:
+        """The text of the traceback that begins at lines[start], up to the next log entry."""
+        block = [lines[start]]
+        for line in lines[start + 1 :]:
+            if re.match(r"(\x1b\[[0-9;]*m)?\d{4}-\d\d-\d\d ", line):
+                break
+            block.append(line)
+        return "\n".join(block)
+
+    @staticmethod
     def problems(lines: list[str]) -> list[str]:
         found = []
-        for line in lines:
+        for index, line in enumerate(lines):
             if any(noise in line for noise in SERVER_LOG_NOISE):
                 continue
-            if any(marker in line for marker in SERVER_LOG_ERRORS):
-                found.append(line.strip()[:200])
+            if not any(marker in line for marker in SERVER_LOG_ERRORS):
+                continue
+            if line.startswith("Traceback") and any(
+                marker in ServerLog._traceback_block(lines, index) for marker in HARMLESS_TRACEBACK_MARKERS
+            ):
+                continue
+            found.append(line.strip()[:200])
         return found
 
 

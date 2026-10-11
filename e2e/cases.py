@@ -773,3 +773,30 @@ def play_album_from_here(ctx: Ctx) -> None:
     names, index, state = _queue_state(ctx)
     ctx.check("the album was queued after the existing item", names[:1] == [ctx.media["track"]["name"]] and songs[0] in names, str(names[:4]))
     ctx.check(f"playing '{songs[pick]}' (position {pick + 1} of the album)", index is not None and names[index] == songs[pick], f"index {index} on {names[index] if index is not None and index < len(names) else None!r}, state {state}")
+
+
+@case(
+    "E2E-24",
+    "Powering the player on from the device resumes the queue when 'Automatically play' is on",
+    "Power > auto play on power on",
+)
+def power_on_resumes(ctx: Ctx) -> None:
+    if ctx.ui is None or ctx.ma is None:
+        ctx.skip("setup", "needs player_host and E2E_MA_TOKEN")
+        return
+    player_id = ctx.rpc.player_id
+    original = ctx.ma.call("config/players/get", player_id=player_id)["values"]["auto_play"]["value"]
+    try:
+        ctx.ma.call("config/players/save", player_id=player_id, values={"auto_play": True})
+        ctx.rpc.play_control(cmd="add", **ctx.media["track"]["params"])
+        _expect_queue(ctx, "start", [ctx.media["track"]["name"]], current=0)
+        ctx.rpc.call("stop")
+        time.sleep(2)
+        say("Powering the player off from the device (i), then on (k)")
+        ctx.ui.press("i", settle=1.0)
+        ctx.check("the player powered off", wait_until(lambda: ctx.rpc.call("power", "?").get("_power") == 0, timeout=10))
+        ctx.ui.press("k", settle=1.0)
+        ctx.check("the player powered on", wait_until(lambda: ctx.rpc.call("power", "?").get("_power") == 1, timeout=10))
+        ctx.check("the queued track resumed", wait_until(lambda: ctx.rpc.status().get("mode") == "play", timeout=15), f"mode {ctx.rpc.status().get('mode')}")
+    finally:
+        ctx.ma.call("config/players/save", player_id=player_id, values={"auto_play": original})

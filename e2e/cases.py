@@ -1088,3 +1088,51 @@ def unavailable_items(ctx: Ctx) -> None:
         if not expected:
             ctx.skip(f"{mode}: unavailable items", "every item is available right now (disable a provider to see the effect)")
 
+
+@case(
+    "E2E-31",
+    "A music provider turned off makes its items (offline), and turning it on again makes them work",
+    "Browse > Radio, with a provider disabled and enabled",
+)
+def provider_off_and_on(ctx: Ctx) -> None:
+    if ctx.ma is None:
+        ctx.skip("setup", "needs E2E_MA_TOKEN to turn a provider off and on")
+        return
+    domain = "radiobrowser"  # needs no sign-in, so it comes back by itself
+    configs = [c for c in ctx.ma.call("config/providers") or [] if c.get("domain") == domain]
+    if not configs:
+        ctx.skip("provider", f"the {domain} provider is not set up")
+        return
+    instance = configs[0]["instance_id"]
+    was_enabled = bool(configs[0].get("enabled", True))
+
+    def rows() -> list[dict[str, Any]]:
+        return ctx.rpc.call("browselibrary", "items", 0, 500, "menu:1", "mode:radio").get("item_loop", [])
+
+    def offline() -> list[dict[str, Any]]:
+        return [row for row in rows() if row.get("unavailable")]
+
+    def save(enabled: bool) -> None:
+        ctx.ma.call("config/providers/save", provider_domain=domain, instance_id=instance, values={"enabled": enabled})
+
+    try:
+        save(True)
+        wait_until(lambda: not offline(), timeout=60, interval=2)
+        ctx.check("provider on: no station is marked (offline)", not offline(), f"{len(offline())} marked")
+        save(False)
+        wait_until(lambda: bool(offline()), timeout=60, interval=2)
+        marked = offline()
+        ctx.check("provider off: its stations are marked (offline)", bool(marked), f"{len(marked)} marked")
+        ctx.check("provider off: marked stations are prefixed", all(r["text"].startswith("(offline) ") for r in marked))
+        ctx.check(
+            "provider off: choosing one does nothing",
+            all(a["cmd"] == ["jiveblankcommand"] for r in marked for a in r["actions"].values()),
+        )
+        save(True)
+        wait_until(lambda: not offline(), timeout=60, interval=2)
+        ctx.check("provider on again: the stations are no longer marked", not offline(), f"{len(offline())} marked")
+        again = [r for r in rows() if r.get("goAction") == "play" or r.get("actions")]
+        ctx.check("provider on again: stations can be played again", bool(again) and not any(r.get("unavailable") for r in again))
+    finally:
+        save(was_enabled)
+

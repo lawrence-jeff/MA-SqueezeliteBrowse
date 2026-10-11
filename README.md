@@ -73,11 +73,13 @@ Things here go beyond browsing and playing music. They are experiments to see wh
 
 ### HA Extras: Home Assistant on the device
 
-An **HA Extras** entry under Settings (with a Home Assistant icon) shows Home Assistant entities on the device. It uses Music Assistant's own Home Assistant plugin for the connection and login, so there is nothing to configure, and it does not appear when that plugin is not set up.
+An **HA Extras** entry under Settings (with a Home Assistant icon) shows Home Assistant entities on the device. It uses Music Assistant's own Home Assistant plugin for the connection and login, so there is no connection to configure, and it does not appear when that plugin is not set up.
 
-HA Extras is off by default. To turn it on for a device, tick **Expose HA Entities to Device (HA Extras)** in that player's settings in Music Assistant, then restart the device so it reloads its menu. Devices without it ticked get no entry and their requests are refused.
+Only entities that carry the Home Assistant **label** named `HA Extras` are shown or controllable. Create the label in Home Assistant (Settings > Areas, labels & zones > Labels) and add it to the entities you want to make visible or controllable.
 
-Only entities that carry the Home Assistant **label** named `HA Extras` are shown or controllable. Create the label in Home Assistant (Settings > Areas, labels & zones > Labels) and add it to the entities you want to make visible or controllable. HA Extras has these panels:
+Each device also needs a checkbox. In Music Assistant, open the player's settings, tick **Expose HA Entities to Device (HA Extras)** (under Output protocol), and restart the device so it reloads its menu. It is off by default, so devices without it get no HA Extras and their requests are refused.
+
+HA Extras has these panels:
 
 - **Cameras**: choosing a camera shows a snapshot full screen in the Image Viewer. It fetches a new snapshot about every 10 seconds (the Image Viewer's delay setting) until you press a key.
 - **Dashboards**: Home Assistant cannot put a label on a dashboard, so a labeled entity stands in for it: a template sensor (Settings > Devices & services > Helpers > Template > Sensor) whose name is the title and whose state is the address of a picture of the dashboard. A screenshot service renders that picture; the Puppet Home Assistant add-on is what this was tried with, for example `http://<host>:10000/lovelace/3?viewport=1920x1080&format=jpeg`. Choosing the entry shows it full screen and refreshes like the cameras.

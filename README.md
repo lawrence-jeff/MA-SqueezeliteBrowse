@@ -13,6 +13,8 @@ Browsing isn't the only thing it changes. It also fixes a number of existing iss
 
 It also includes experimental changes to integrate media and non media related Home Assistant items (scenes, sensors, switches). These also register screensavers on the devices showing camera(s) and dashboard(s). See Experimental Proof Of Concept below.
 
+[Menu walkthrough slideshow](docs/MA-SqueezeliteBrowse-menu-walkthrough.pptx) (PowerPoint, 29 slides): screenshots of the menus on a piCorePlayer, from the main menu through My Music, Now Playing and the queue, Settings and HA Extras.
+
 It works by injecting patched provider files and a patched `aioslimproto` package straight into the running `music_assistant` container's Python environment.
 
 The intent is to let you quickly test these changes against your own real Music Assistant setup and real Squeezebox-style clients, without needing a full Music Assistant development environment. If you'd rather develop that way - editing the real source, running the test suite, etc. - use the forked repositories directly (see below). This script is for the "I just want to try it" path: from a stock Home Assistant host with Music Assistant already running, you can be testing in a few minutes.

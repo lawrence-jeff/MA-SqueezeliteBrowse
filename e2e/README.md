@@ -104,8 +104,8 @@ Following a run: everything the run prints (what it is navigating to, each press
 run that was started from somewhere else (for example by an assistant in the background).
 
 Starting a session (`PlayerUi.start_from_home`, called by the runner's reset): announce "Beginning automated testing",
-take a screenshot of where the device was left (`reports/screens/reset-start.jpg`), wait 3 seconds, send `h`, wait 1 second,
-send `h`, take another screenshot (`reset-end.jpg`) and check with OCR that My Music, Choose Player and Quit are showing.
+take a screenshot of where the device was left (`reports/screens/reset-start.jpg`), wait 3 seconds, send `k` (power on, a no-op if the player is on; a powered-off player ignores `h`), wait 2 seconds,
+send `h`, wait 1 second, send `h`, take another screenshot (`reset-end.jpg`) and check with OCR that My Music, Choose Player and Quit are showing.
 If not, the run stops (exit code 3, announced on the player) and `reports/screens/reset-failure.json` records the text read
 from both screenshots and their paths. No key is ever sent within 3 seconds of a screenshot, since JiveLite drops keys while
 it saves one; `h` also dismisses a screensaver.

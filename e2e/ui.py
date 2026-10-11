@@ -134,11 +134,11 @@ class PlayerUi:
         code = KEYS[name]
         self.keys(f"d {code}\ns {int(seconds * 1000)}\nu {code}\ns 400\n")
 
-    def screenshot(self, dest: Path) -> Path:
+    def screenshot(self, dest: Path, tries: int = 3) -> Path:
         """Take a JiveLite screenshot (Shift+S) and copy it to dest. Retries if the file does not appear."""
         say(f"Taking a screenshot ({dest.name})")
         name = ""
-        for _ in range(3):
+        for _ in range(tries):
             self._ssh("sudo rm -f /tmp/jivelite*.bmp")
             self.keys(f"d {KEYS['shift']}\nd {KEYS['s']}\ns 100\nu {KEYS['s']}\nu {KEYS['shift']}\ns 800\n")
             self._shot_at = time.time()
@@ -171,7 +171,7 @@ class PlayerUi:
         """
         Start a session from the home screen, and stop with the evidence if that does not work.
 
-        Screenshot, wait 3 seconds, h, wait 1 second, h, screenshot, then OCR checks that the home
+        Screenshot, wait 3 seconds, k (power on), wait 2 seconds, h, wait 1 second, h, screenshot, then OCR checks that the home
         screen is showing. If it is not, the two screenshots and what was read from them are saved
         in reports/screens/ (reset-failure.json) and HomeNotReached is raised.
         """
@@ -182,11 +182,20 @@ class PlayerUi:
         folder = Path(__file__).resolve().parent / "reports" / "screens"
         folder.mkdir(parents=True, exist_ok=True)
         say("Start: taking a screenshot of where the device was left")
-        start = self.screenshot(folder / "reset-start.jpg")
-        start_lines = ocr.read_lines(start)
-        say(f"Screen before going home: {start_lines[:6]}")
-        say("Waiting 3 seconds, then h, 1 second, h")
+        start = folder / "reset-start.jpg"
+        start.unlink(missing_ok=True)
+        try:
+            start_lines = ocr.read_lines(self.screenshot(start, tries=1))
+            say(f"Screen before going home: {start_lines[:6]}")
+        except RuntimeError:
+            # A powered-off player ignores every key, the screenshot key included.
+            start_lines = []
+            say("No screenshot came back (the player may be powered off); carrying on with the power-on key")
+        say("Waiting 3 seconds, then k (power on), 2 seconds, h, 1 second, h")
         time.sleep(3.0)
+        # A player that is soft powered off shows a screensaver that ignores every key but the power ones;
+        # k is JiveLite's "power on" and does nothing when the player is already on.
+        self.press("k", settle=2.0)
         self.press("h", settle=1.0)
         self.press("h", settle=0.5)
         end = self.screenshot(folder / "reset-end.jpg")
@@ -197,7 +206,7 @@ class PlayerUi:
         record = {
             "when": time.strftime("%Y-%m-%d %H:%M:%S"),
             "expected_on_screen": list(expect),
-            "start_screenshot": str(start),
+            "start_screenshot": str(start) if start.exists() else None,
             "start_text": start_lines,
             "end_screenshot": str(end),
             "end_text": end_lines,

@@ -38,6 +38,7 @@ This repo holds only `reinject.sh` and this README. `reinject.sh` downloads the 
 - `docker` and `curl` available in that SSH session.
 - A writable `/config` directory - only needs to hold the handful of downloaded patch files (well under 2MB total).
 - Optional, only if you want `reinject.sh` to also reboot a real Squeezebox (e.g. a UE Radio) test client over SSH: `sshpass`, installed yourself beforehand (`apk add sshpass` on the Home Assistant OS's own Alpine-based SSH session). `reinject.sh` deliberately does **not** install this automatically — it's your call whether to add packages to your own Home Assistant host, not something this script should decide on your behalf. If `sshpass` isn't installed, that reboot step is skipped with a warning; everything else still runs normally.
+- Optional, to see or control Home Assistant entities on the device: Music Assistant's Home Assistant plugin, the `HA Extras` label on the entities, and, for dashboards, a screenshot add-on. See [Experimental Proof Of Concept](#experimental-proof-of-concept) below.
 
 ## Usage
 

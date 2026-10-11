@@ -1060,3 +1060,31 @@ def cannot_play_message(ctx: Ctx) -> None:
     # the client processed a popup (it fails with a Lua error when the popup has no icon)
     ctx.verify_clean(marker, expect_popup=True)
 
+
+@case(
+    "E2E-30",
+    "Items Music Assistant reports as unavailable are shown as (offline) and do nothing when chosen",
+    "Browse lists (Radio, Playlists, Albums, Tracks)",
+)
+def unavailable_items(ctx: Ctx) -> None:
+    if ctx.ma is None:
+        ctx.skip("setup", "needs E2E_MA_TOKEN to read Music Assistant's own availability")
+        return
+    lists = (
+        ("radio", "music/radios/library_items"),
+        ("playlists", "music/playlists/library_items"),
+        ("albums", "music/albums/library_items"),
+        ("tracks", "music/tracks/library_items"),
+    )
+    for mode, api in lists:
+        items = ctx.ma.call(api, limit=500) or []
+        rows = ctx.rpc.call("browselibrary", "items", 0, 500, "menu:1", f"mode:{mode}").get("item_loop", [])
+        offline = [row for row in rows if row.get("unavailable")]
+        expected = sum(1 for item in items if not item.get("available"))
+        ctx.check(f"{mode}: the rows marked offline match Music Assistant ({expected})", len(offline) == expected, f"{len(offline)} marked")
+        ctx.check(f"{mode}: marked rows are prefixed", all(row["text"].startswith("(offline) ") for row in offline))
+        inert = all(a["cmd"] == ["jiveblankcommand"] for row in offline for a in row["actions"].values())
+        ctx.check(f"{mode}: marked rows do nothing when chosen", inert)
+        if not expected:
+            ctx.skip(f"{mode}: unavailable items", "every item is available right now (disable a provider to see the effect)")
+

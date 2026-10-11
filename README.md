@@ -8,6 +8,10 @@ Browsing isn't the only thing it changes. It also fixes a number of existing iss
 - Stream/track detail display
 - Shuffle/repeat button sync with Music Assistant
 - Queue display and track management (add/remove/reorder) sync with the server
+- Power on/off from the device, including resume on power on and powering on at connect
+- Presets under My Music
+
+It also includes experimental changes to integrate media-related Home Assistant items (scenes, sensors, switches); see Experimental Proof Of Concept below.
 
 It works by injecting patched provider files and a patched `aioslimproto` package straight into the running `music_assistant` container's Python environment.
 
@@ -47,7 +51,7 @@ This repo holds only `reinject.sh` and this README. `reinject.sh` downloads the 
    ```
    curl -s "http://192.168.0.241/cgi-bin/main.cgi?ACTION=reboot" > /dev/null
    ```
-   Update the IP to your client, or remove the line if you don't need the client rebooted after each run.
+   Update the IP to your client, or remove the line if you don't need the client rebooted after each run. A change that only touches the server does not need the reboot (the clients reconnect when Music Assistant restarts): run `SKIP_CLIENT_REBOOT=1 ./reinject.sh` to leave both the piCorePlayer and any other client running.
 4. If you're also testing against a real Squeezebox device (e.g. a UE Radio) on the same network, `reinject.sh` includes a second, separate best-effort step that reboots it over SSH afterward. The device must have **Remote Access** (sometimes called SSH/remote support access) enabled in its own on-device Settings menu first, or the SSH connection will simply fail/time out regardless of the credentials/algorithm overrides below.
    ```
    sshpass -p '1234' ssh -oKexAlgorithms=+diffie-hellman-group1-sha1 -oHostKeyAlgorithms=+ssh-rsa -oCiphers=+aes256-cbc -oMACs=+hmac-sha1 root@192.168.0.242 reboot
@@ -61,6 +65,26 @@ This repo holds only `reinject.sh` and this README. `reinject.sh` downloads the 
 6. Run `./reinject.sh -update` any time later to re-download and pick up newer patches. Plain `./reinject.sh` never re-downloads on its own - once the files are there, it just re-injects whatever's already downloaded (faster, and works offline).
 
    Consider disabling Music Assistant's Auto Update while you're testing this. An auto-update - or any restart of the app that recreates the container - reverts back to stock (see below) and means running `reinject.sh` again.
+
+## Experimental Proof Of Concept
+
+Things here go beyond browsing and playing music. They are experiments to see what Squeezebox-style clients can do when the server drives their menus, and they may not belong in Music Assistant itself. Each one is kept in its own files so it can be removed on its own.
+
+### HA Extras: Home Assistant on the device
+
+An **HA Extras** entry under Settings (with a Home Assistant icon) shows Home Assistant entities on the device. It uses Music Assistant's own Home Assistant plugin for the connection and login, so there is nothing to configure, and it does not appear when that plugin is not set up.
+
+Only entities that carry the Home Assistant **label** named `HA Extras` are shown or controllable. Create the label in Home Assistant (Settings > Areas, labels & zones > Labels) and add it to the entities you want to make visible or controllable. HA Extras has these panels:
+
+- **Cameras**: choosing a camera shows a snapshot full screen in the Image Viewer. It fetches a new snapshot about every 10 seconds (the Image Viewer's delay setting) until you press a key.
+- **Dashboards**: Home Assistant cannot put a label on a dashboard, so a labeled entity stands in for it: a template sensor (Settings > Devices & services > Helpers > Template > Sensor) whose name is the title and whose state is the address of a picture of the dashboard. A screenshot service renders that picture; the Puppet Home Assistant add-on is what this was tried with, for example `http://<host>:10000/lovelace/3?viewport=1920x1080&format=jpeg`. Choosing the entry shows it full screen and refreshes like the cameras.
+- **Controls**: lights, switches, input booleans, fans and media players (a receiver or TV). Each row shows the name and its state, and choosing it opens a menu with **Turn On**, **Turn Off** and **Cancel**.
+- **Scenes and Scripts**: choosing one opens a menu with **Run** and **Cancel**.
+- **Status**: every other labeled entity as read-only rows (name, then the value with its unit; numbers are rounded to one decimal).
+
+Notes:
+
+- It is limited to turning things on and off and running scenes. Brightness, colors, locks, covers and climate controls are not handled.
 
 ## Reverting back to stock
 

@@ -73,6 +73,7 @@ radio.png
 radiolocal_100x100_m.png radiolocal_225x225_m.png radiolocal_40x40_m.png radiolocal_41x41_m.png
 radiosearch_100x100_m.png radiosearch_225x225_m.png radiosearch_41x41_m.png
 "
+SQZ_STATIC_FILES="$SQZ_STATIC_FILES HAExtras/account.png HAExtras/battery.png HAExtras/cctv.png HAExtras/door.png HAExtras/eye.png HAExtras/fan.png HAExtras/flash.png HAExtras/garage.png HAExtras/gauge.png HAExtras/haextras.png HAExtras/information.png HAExtras/lightbulb.png HAExtras/lock.png HAExtras/motion-sensor.png HAExtras/palette.png HAExtras/script-text.png HAExtras/speaker.png HAExtras/television-classic.png HAExtras/thermometer.png HAExtras/thermostat.png HAExtras/toggle-switch.png HAExtras/view-dashboard.png HAExtras/water-percent.png HAExtras/weather-partly-cloudy.png HAExtras/window-open.png"  # HA-EXTRAS
 
 fetch_staged_files() {
     echo "--- downloading patch files from the ma-squeezelite-browse branches (lawrence-jeff/aioslimproto, lawrence-jeff/server) ---"
@@ -81,11 +82,12 @@ fetch_staged_files() {
         curl -fsSL "$ASP_RAW_BASE/$f" -o "$ASP_SRC/$f" \
             || { echo "FAILED: could not download $ASP_RAW_BASE/$f"; exit 1; }
     done
-    for f in provider.py browselibrary.py player.py; do
+    for f in provider.py browselibrary.py player.py haextras.py; do  # HA-EXTRAS (haextras.py)
         curl -fsSL "$SQZ_RAW_BASE/$f" -o "$SQZ_SRC/$f" \
             || { echo "FAILED: could not download $SQZ_RAW_BASE/$f"; exit 1; }
     done
     for f in $SQZ_STATIC_FILES; do
+        mkdir -p "$(dirname "$SQZ_SRC/static/$f")"  # HA-EXTRAS (static/HAExtras/)
         curl -fsSL "$SQZ_RAW_BASE/static/$f" -o "$SQZ_SRC/static/$f" \
             || { echo "FAILED: could not download $SQZ_RAW_BASE/static/$f"; exit 1; }
     done
@@ -176,6 +178,7 @@ echo "=== Applying our squeezelite provider files ==="
 docker cp $SQZ_SRC/provider.py      $CONTAINER:$SQZ_DEST/provider.py
 docker cp $SQZ_SRC/browselibrary.py $CONTAINER:$SQZ_DEST/browselibrary.py
 docker cp $SQZ_SRC/player.py        $CONTAINER:$SQZ_DEST/player.py
+docker cp $SQZ_SRC/haextras.py     $CONTAINER:$SQZ_DEST/haextras.py  # HA-EXTRAS
 
 # Real chrome icon files (browselibrary.py's STATIC_DIR = Path(__file__).parent
 # / "static" - so this has to land as $SQZ_DEST/static, a sibling of
@@ -222,7 +225,7 @@ verify_landed() {
     echo "verified: $(basename "$1")"
 }
 for f in cli.py models.py server.py; do verify_landed "$ASP_SRC/$f" "$ASP_DEST/$f"; done
-for f in provider.py browselibrary.py player.py; do verify_landed "$SQZ_SRC/$f" "$SQZ_DEST/$f"; done
+for f in provider.py browselibrary.py player.py haextras.py; do verify_landed "$SQZ_SRC/$f" "$SQZ_DEST/$f"; done  # HA-EXTRAS (haextras.py)
 # sh -c wrapper is required here, not optional: docker exec with no shell
 # does a raw PATH search for a program literally named "test" - in this
 # container that apparently resolves to some installed package's "test"
@@ -244,8 +247,13 @@ echo "=== Reset Test Client==="
 # different device, like the UE Radio, that doesn't need/want a reboot)
 # must not abort the rest of this script under `set -e` - the actual
 # patch deploy (docker restart below) still needs to run either way.
-curl -s --max-time 5 "http://192.168.0.241/cgi-bin/main.cgi?ACTION=reboot" > /dev/null \
-    || echo "WARNING: could not reach test client at 192.168.0.241 - skipping its reboot, continuing"
+# Set SKIP_CLIENT_REBOOT=1 to leave the clients running (enough for server-only changes: they reconnect).
+if [ -n "${SKIP_CLIENT_REBOOT:-}" ]; then
+    echo "SKIP_CLIENT_REBOOT is set - not rebooting the test client"
+else
+    curl -s --max-time 5 "http://192.168.0.241/cgi-bin/main.cgi?ACTION=reboot" > /dev/null \
+        || echo "WARNING: could not reach test client at 192.168.0.241 - skipping its reboot, continuing"
+fi
 
 echo ""
 echo "=== Reset UE Radio Test Client ==="
@@ -278,7 +286,7 @@ echo "=== Reset UE Radio Test Client ==="
 # never coming - well past this script's own `docker restart` step
 # ever running. `timeout 15` guarantees this step always ends on its
 # own, successful reboot or not.
-if command -v sshpass > /dev/null 2>&1; then
+if [ -z "${SKIP_CLIENT_REBOOT:-}" ] && command -v sshpass > /dev/null 2>&1; then
     timeout 15 sshpass -p '1234' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
         -oKexAlgorithms=+diffie-hellman-group1-sha1 \
         -oHostKeyAlgorithms=+ssh-rsa \

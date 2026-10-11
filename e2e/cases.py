@@ -9,6 +9,7 @@ errors) and the server log. Cases are registered with @case and run by run.py.
 from __future__ import annotations
 
 import time
+import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -894,3 +895,99 @@ def alarm_not_supported(ctx: Ctx) -> None:
         failed = [row for row in ctx.client_log.since(marker.client) if "error in event function" in row]
         ctx.check("no Lua event errors in the client log", not failed, f"{len(failed)} error(s) while pressing back and home")
     ctx.verify_clean(marker, expect_popup=False)
+
+
+SETTINGS_HAEXTRAS_INDEX = 5  # Settings grid on the piCorePlayer: ... Advanced, then HA Extras on the second row
+
+
+def _row_title(row: dict[str, Any]) -> str:
+    return str(row.get("text", "")).split("\n", maxsplit=1)[0]
+
+
+@case(
+    "E2E-27",
+    "HA Extras: the panels list the labeled Home Assistant entities, pictures arrive and the device shows them",
+    "Settings > HA Extras (Cameras, Dashboards, Controls, Scenes and Scripts, Status)",
+)
+def ha_extras(ctx: Ctx) -> None:
+    menu = ctx.rpc.call("menu", 0, 100).get("item_loop", [])
+    entry = next((row for row in menu if row.get("id") == "settingsHaExtras"), None)
+    if entry is None:
+        ctx.skip("HA Extras", "not listed: Music Assistant has no Home Assistant plugin set up")
+        return
+    ctx.check("the entry sits under Settings", entry.get("node") == "settings")
+    panels = ctx.rpc.call("haextras", "items", 0, 100).get("item_loop", [])
+    ctx.check(
+        "the five panels are listed",
+        [_row_title(row) for row in panels]
+        == ["Cameras", "Dashboards", "Controls", "Scenes and Scripts", "Status"],
+        str([_row_title(row) for row in panels]),
+    )
+    ctx.check("the panel rows ask for the list layout", all(row.get("type") == "playlist" for row in panels))
+
+    def rows(panel: str) -> list[dict[str, Any]]:
+        return ctx.rpc.call("haextras", "items", 0, 100, f"panel:{panel}").get("item_loop", [])
+
+    entities = {panel: rows(panel) for panel in ("cameras", "dashboards", "controls", "scenes", "status")}
+    for panel, found in entities.items():
+        ctx.check(f"{panel}: every row has an icon that the server can serve", all(_icon_served(ctx, r) for r in found if "icon" in r))
+    controls = [r for r in entities["controls"] if "icon" in r]
+    for row in controls:
+        ctx.check(f"{_row_title(row)}: the value is on the second line", "\n" in row["text"], row["text"])
+
+    for row in entities["cameras"] + entities["dashboards"]:
+        if "slideshow" not in row:
+            continue  # the "no ... has the label" placeholder
+        params = row["actions"]["go"]["params"]
+        reply = ctx.rpc.call("haextraspicture", f"entity:{params['entity']}", "slideshow:1")
+        image = (reply.get("data") or [{}])[0].get("image", "")
+        ctx.check(f"{_row_title(row)}: the Image Viewer list names a picture", "{resizeParams}" in image, image)
+        if "{resizeParams}" in image:
+            url = f"{ctx.rpc.base_url}/{image.replace('{resizeParams}', '_1920x1080')}"
+            with urllib.request.urlopen(url, timeout=90) as resp:
+                body = resp.read()
+            ctx.check(f"{_row_title(row)}: the picture is a JPEG", body[:2] == b"\xff\xd8" and len(body) > 5000, f"{len(body)} bytes")
+
+    # Entities that do not carry the label cannot be reached, whatever the request says.
+    reply = ctx.rpc.call("haextrasset", "entity:light.no_such_light_for_the_test", "state:on")
+    ctx.check("an unlabeled entity is refused", any("Not available" in r.get("text", "") for r in reply.get("item_loop", [])))
+
+    if ctx.ui is None:
+        ctx.skip("device", "needs player_host in the config")
+        return
+    marker = ctx.begin()
+    say("Navigating: Home > Settings > HA Extras")
+    ctx.ui.home()
+    ctx.ui.to_top()
+    ctx.ui.press("right", "right", "right", "enter", settle=3.0)  # Settings is the fourth home entry
+    ctx.ui.to_top()
+    ctx.ui.press(*["right"] * SETTINGS_HAEXTRAS_INDEX, settle=0.3)
+    ctx.ui.press("enter", settle=3.0)
+    ctx.check_screen("panels", present=("Cameras", "Dashboards", "Controls", "Status"))
+    if controls:
+        say("Navigating: HA Extras > Controls")
+        ctx.ui.to_top()
+        ctx.ui.press("right", "right", "enter", settle=3.0)
+        ctx.check_screen("controls", present=(_row_title(controls[0]),))
+        # The choice menu: nothing is switched, it is left with Escape.
+        say("Opening the choice menu of the first control")
+        ctx.ui.to_top()
+        ctx.ui.press("enter", settle=3.0)
+        ctx.check_screen("choices", present=("Turn On", "Turn Off", "Cancel"))
+        ctx.ui.press("esc", "esc", settle=2.0)
+    ctx.ui.home()
+    ctx.check_screen("home", present=("My Music", "Choose Player"))
+    if ctx.client_log is not None and marker.client is not None:
+        failed = [row for row in ctx.client_log.since(marker.client) if "error in event function" in row]
+        ctx.check("no Lua event errors in the client log", not failed, f"{len(failed)} error(s)")
+    ctx.verify_clean(marker, expect_popup=False)
+
+
+def _icon_served(ctx: Ctx, row: dict[str, Any]) -> bool:
+    """Return True if the row's icon comes back as a PNG at the size a list asks for."""
+    name = row["icon"].removesuffix(".png")
+    try:
+        with urllib.request.urlopen(f"{ctx.rpc.base_url}/{name}_41x41_m.png", timeout=15) as resp:
+            return resp.read(8) == b"\x89PNG\r\n\x1a\n"
+    except OSError:
+        return False

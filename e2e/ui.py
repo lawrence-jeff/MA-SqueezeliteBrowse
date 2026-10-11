@@ -171,7 +171,7 @@ class PlayerUi:
 
     HOME_WORDS = ("My Music", "Choose Player", "Quit")
 
-    def start_from_home(self, expect: tuple[str, ...] = HOME_WORDS) -> None:
+    def start_from_home(self, expect: tuple[str, ...] = HOME_WORDS) -> list[str]:
         """
         Start a session from the home screen, and stop with the evidence if that does not work.
 
@@ -206,7 +206,7 @@ class PlayerUi:
         end_lines = ocr.read_lines(end)
         if all(ocr.contains(end_lines, word) for word in expect):
             say("On the home screen")
-            return
+            return end_lines
         record = {
             "when": time.strftime("%Y-%m-%d %H:%M:%S"),
             "expected_on_screen": list(expect),
@@ -230,14 +230,32 @@ class PlayerUi:
         self.press(*["down"] * row, settle=0.4) if row else None
         self.press("enter", settle=3.0)
 
-    def reset(self, server_log: object, player_id: str, player_row: int = 0) -> None:
+    def reset(
+        self, server_log: object, player_id: str, player_row: int = 0, player_name: str | None = None
+    ) -> None:
         """Start from a known place: home, with the UI controlling this player.
 
-        The player the UI controls survives reboots, so it is checked by the player id on the
-        requests a browse sends, and switched through Choose Player if it is the wrong one.
+        The player the UI controls survives reboots, so it is checked and switched through Choose
+        Player if it is the wrong one. With player_name the check reads the title of the home
+        screen, which names the player (no navigation). Without it, the player id on the request
+        a browse sends is used instead.
         """
-        self.start_from_home()
-        for attempt in range(3):
+        import ocr  # noqa: PLC0415
+
+        lines = self.start_from_home()
+        if player_name:
+            for _ in range(2):
+                if ocr.contains(lines, player_name):
+                    return
+                say(f"The home screen does not show '{player_name}'; choosing it in Choose Player")
+                self.choose_player(player_row)
+                self.home()
+                with tempfile.TemporaryDirectory() as tmp:
+                    lines = ocr.read_lines(self.screenshot(Path(tmp) / "home.jpg"))
+            if ocr.contains(lines, player_name):
+                return
+            raise RuntimeError(f"the UI does not control {player_name}: the home screen reads {lines[:6]}")
+        for _ in range(3):
             self.open_my_music("Favorites")
             seen = server_log.browse_player(server_log.since(25))  # type: ignore[attr-defined]
             self.home()

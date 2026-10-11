@@ -277,7 +277,9 @@ def main() -> int:
     if ctx.ui is not None and ctx.server_log is not None:
         print("Resetting the player UI to home...")
         try:
-            ctx.ui.reset(ctx.server_log, config["player_id"], int(config.get("player_row", 0)))
+            ctx.ui.reset(
+                ctx.server_log, config["player_id"], int(config.get("player_row", 0)), config.get("player_name")
+            )
         except HomeNotReached as err:
             print(f"STOPPED: {err}", flush=True)
             if not args.no_announce:

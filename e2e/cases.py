@@ -848,3 +848,49 @@ def reboot_power_on(ctx: Ctx) -> None:
     finally:
         ctx.ma.call("config/players/save", player_id=player_id, values={"auto_play": original})
         ctx.rpc.call("stop")
+
+
+ALARM_TEXT = "Not Supported - HA can trigger alarm via automation"
+SETTINGS_ALARM_INDEX = 3  # Settings grid on the piCorePlayer: Home Menu, Image Viewer, Screen, Alarm Clock, ...
+
+
+@case(
+    "E2E-26",
+    "The Alarm Clock entry says alarms are not supported and points to Home Assistant",
+    "Settings > Alarm Clock (what the alarm button opens)",
+)
+def alarm_not_supported(ctx: Ctx) -> None:
+    menu = ctx.rpc.call("menu", 0, 100).get("item_loop", [])
+    by_id = {row.get("id"): row for row in menu}
+    entry = by_id.get("settingsAlarm")
+    child = by_id.get("settingsAlarmNotSupported")
+    ctx.check("the server lists the Alarm Clock entry under Settings", bool(entry) and entry.get("node") == "settings")
+    ctx.check("its only line carries the text", bool(child) and child.get("text") == ALARM_TEXT, str(child and child.get("text")))
+    if ctx.ui is None:
+        ctx.skip("device", "needs player_host in the config")
+        return
+    marker = ctx.begin()
+
+    def open_alarm_clock() -> None:
+        say("Navigating: Home > Settings > Alarm Clock")
+        ctx.ui.home()
+        ctx.ui.to_top()
+        ctx.ui.press("right", "right", "right", "enter", settle=3.0)  # Settings is the fourth home entry
+        ctx.ui.to_top()
+        ctx.ui.press(*["right"] * SETTINGS_ALARM_INDEX, settle=0.3)
+        ctx.ui.press("enter", settle=3.0)
+
+    open_alarm_clock()
+    ctx.check_screen("alarm-clock", present=(ALARM_TEXT,))
+    # The window must be left like any other: Escape goes back to Settings, h goes home.
+    say("Pressing Escape")
+    ctx.ui.press("esc", settle=2.0)
+    ctx.check_screen("after-escape", present=("Alarm Clock", "Advanced"), absent=(ALARM_TEXT,))
+    open_alarm_clock()
+    say("Pressing h")
+    ctx.ui.press("h", settle=2.0)
+    ctx.check_screen("after-h", present=("My Music", "Choose Player"), absent=(ALARM_TEXT,))
+    if ctx.client_log is not None and marker.client is not None:
+        failed = [row for row in ctx.client_log.since(marker.client) if "error in event function" in row]
+        ctx.check("no Lua event errors in the client log", not failed, f"{len(failed)} error(s) while pressing back and home")
+    ctx.verify_clean(marker, expect_popup=False)

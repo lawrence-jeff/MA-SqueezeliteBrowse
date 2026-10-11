@@ -11,7 +11,7 @@ Browsing isn't the only thing it changes. It also fixes a number of existing iss
 - Power on/off from the device, including resume on power on and powering on at connect
 - Presets under My Music
 
-It also includes experimental changes to integrate media-related Home Assistant items (scenes, sensors, switches); see Experimental Proof Of Concept below.
+It also includes experimental changes to integrate media and non media related Home Assistant items (scenes, sensors, switches). These also register screensavers on the devices showing camera(s) and dashboard(s). See Experimental Proof Of Concept below.
 
 It works by injecting patched provider files and a patched `aioslimproto` package straight into the running `music_assistant` container's Python environment.
 
@@ -82,6 +82,13 @@ Only entities that carry the Home Assistant **label** named `HA Extras` are show
 - **Controls**: lights, switches, input booleans, fans and media players (a receiver or TV). Each row shows the name and its state, and choosing it opens a menu with **Turn On**, **Turn Off** and **Cancel**.
 - **Scenes and Scripts**: choosing one opens a menu with **Run** and **Cancel**.
 - **Status**: every other labeled entity as read-only rows (name, then the value with its unit; numbers are rounded to one decimal).
+
+All Cameras and Dashboards also register as screensaver providers, so you can configure the device to show a fixed one (10 sec refresh) or rotate through them every 10 seconds.
+
+Worlds smallest HA dashboard running as a screensaver on old Squeezebox UE
+
+![A dashboard on a UE radio](20261011_015325.jpg)
+
 
 Notes:
 

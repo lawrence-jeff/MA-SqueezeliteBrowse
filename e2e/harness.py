@@ -347,6 +347,11 @@ def icon_url(base_url: str, icon: str, size: str = "225x225_m") -> str:
     return f"{base_url}/{path.lstrip('/')}"
 
 
+# Icon ids (e.g. "playlist-1") of items that have no artwork, so the default image is the right answer.
+# Filled from "expected_placeholders" in the config.
+EXPECTED_PLACEHOLDERS: set[str] = set()
+
+
 def check_icon(base_url: str, icon: str | None) -> Check:
     """Fetch one icon and report whether it is a real image."""
     if not icon:
@@ -363,6 +368,8 @@ def check_icon(base_url: str, icon: str | None) -> Check:
     if not ctype.startswith("image/") or not body:
         return Check("icon", FAIL, f"{icon}: not an image ({ctype}, {len(body)}B)")
     if ctype == "image/png" and len(body) < 400:
+        if EXPECTED_PLACEHOLDERS.intersection(icon.split("/")):
+            return Check("icon", PASS, f"{icon}: default image, as expected ({len(body)}B)")
         return Check("icon", WARN, f"{icon}: placeholder image ({len(body)}B)")
     return Check("icon", PASS, f"{icon}: {ctype} {len(body)}B")
 

@@ -26,6 +26,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import cases  # noqa: E402
+import harness  # noqa: E402
 from ui import HomeNotReached  # noqa: E402
 from harness import (  # noqa: E402
     FAIL,
@@ -52,6 +53,7 @@ def load_config(path: Path) -> dict:
 
 
 def build_ctx(config: dict, args: argparse.Namespace) -> Ctx:
+    harness.EXPECTED_PLACEHOLDERS.update(config.get("expected_placeholders", []))
     rpc = Rpc(config["server_url"], config["player_id"])
     client_log = None
     if config.get("client_log_url") and not args.no_client_log:

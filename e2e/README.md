@@ -14,6 +14,7 @@ Music Assistant's own websocket API needs a login token. The JSON-RPC on the Squ
 1. Copy `config.example.json` to `config.json` and fill it in (it is git-ignored):
    server URL, the player id and name, the piCorePlayer's JiveLite log URL, and (optional) ssh
    details for the Music Assistant container log.
+   Items that have no artwork of their own get Music Assistant's default image, which the tests report as a warning. List their icon ids (for example `playlist-1`, as in the icon address `music/playlist-1/cover`) under `expected_placeholders` to have the default image count as a pass for them.
 2. `python3 e2e/run.py --dry-run` finds one item of each media type and shows the plan. It does
    not change anything.
 3. `python3 e2e/run.py` runs the cases. It refuses to start unless the configured player is

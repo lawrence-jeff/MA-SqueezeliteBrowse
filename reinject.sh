@@ -62,7 +62,7 @@ fetch_staged_files() {
         curl -fsSL "$ASP_RAW_BASE/$f" -o "$ASP_SRC/$f" \
             || { echo "FAILED: could not download $ASP_RAW_BASE/$f"; exit 1; }
     done
-    for f in provider.py browselibrary.py player.py haextras.py; do  # HA-EXTRAS (haextras.py)
+    for f in provider.py browselibrary.py player.py strings.json haextras.py; do  # HA-EXTRAS (haextras.py, strings.json entry)
         curl -fsSL "$SQZ_RAW_BASE/$f" -o "$SQZ_SRC/$f" \
             || { echo "FAILED: could not download $SQZ_RAW_BASE/$f"; exit 1; }
     done
@@ -134,6 +134,7 @@ echo "=== Applying our squeezelite provider files ==="
 docker cp $SQZ_SRC/provider.py      $CONTAINER:$SQZ_DEST/provider.py
 docker cp $SQZ_SRC/browselibrary.py $CONTAINER:$SQZ_DEST/browselibrary.py
 docker cp $SQZ_SRC/player.py        $CONTAINER:$SQZ_DEST/player.py
+docker cp $SQZ_SRC/strings.json     $CONTAINER:$SQZ_DEST/strings.json  # HA-EXTRAS (its settings text)
 docker cp $SQZ_SRC/haextras.py     $CONTAINER:$SQZ_DEST/haextras.py  # HA-EXTRAS
 
 # The menu icons (browselibrary.py's STATIC_DIR is Path(__file__).parent / "static") must land as
@@ -170,7 +171,7 @@ verify_landed() {
     echo "verified: $(basename "$1")"
 }
 for f in cli.py models.py server.py; do verify_landed "$ASP_SRC/$f" "$ASP_DEST/$f"; done
-for f in provider.py browselibrary.py player.py haextras.py; do verify_landed "$SQZ_SRC/$f" "$SQZ_DEST/$f"; done  # HA-EXTRAS (haextras.py)
+for f in provider.py browselibrary.py player.py strings.json haextras.py; do verify_landed "$SQZ_SRC/$f" "$SQZ_DEST/$f"; done  # HA-EXTRAS (haextras.py, strings.json)
 # The sh -c wrapper is required: `docker exec` without a shell finds an installed package's `test`
 # console script (which runs unittest) instead of the shell's file test.
 docker exec $CONTAINER sh -c "test -f '$SQZ_DEST/static/AlbumArtists_225x225_m.png'" \

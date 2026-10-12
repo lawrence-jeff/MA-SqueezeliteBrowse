@@ -73,7 +73,7 @@ This repo holds only `reinject.sh` and this README. `reinject.sh` downloads the 
 
 ## Experimental Proof Of Concept
 
-Things here go beyond browsing and playing music. They are experiments to see what Squeezebox-style clients can do when the server drives their menus, and they may not belong in Music Assistant itself. Each one is kept in its own files so it can be removed on its own.
+Things here go beyond browsing and playing music. They are experiments to see what Squeezebox-style clients can do when the server drives their menus, and they may not belong in Music Assistant itself.
 
 ### HA Extras: Home Assistant on the device
 

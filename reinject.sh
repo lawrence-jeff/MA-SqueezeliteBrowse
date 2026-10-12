@@ -18,25 +18,31 @@ echo "=== Using Music Assistant container: $CONTAINER ==="
 
 # Staging directories. Full dev checkouts stay on the development machine, never under /config (a
 # clone there would be swept into Home Assistant's backups); this script only needs the few
-# patched files below. Stage them by hand (network share, rsync), or stage nothing and the first
-# run downloads them from the branches of the two forks (ma-squeezelite-browse and dev-squeezelite-browse).
+# patched files below. By default every run downloads them from the branches of the two forks
+# (ma-squeezelite-browse and dev-squeezelite-browse). With -local it uses what is already staged
+# here instead, which is how files copied over by hand (network share, rsync) get tested.
 ASP_SRC=/config/ma-squeezelite-browse/aioslimproto
 SQZ_SRC=/config/ma-squeezelite-browse/server
 SQZ_DEST=/app/venv/lib/python3.14/site-packages/music_assistant/providers/squeezelite
 ASP_DEST=/app/venv/lib/python3.14/site-packages/aioslimproto
 
-# -update re-downloads the staged files from the forks, overwriting what is staged. Without it,
-# files that are already staged are injected as they are.
-FORCE_UPDATE=false
-if [ "$1" = "-update" ]; then
-    FORCE_UPDATE=true
-fi
+# -local injects the files already staged, without downloading, and fails if any is missing.
+# Without it the staged files are replaced by a fresh download. -update is accepted for older
+# instructions and is what happens by default.
+USE_LOCAL=false
+for arg in "$@"; do
+    case "$arg" in
+        -local) USE_LOCAL=true ;;
+        -update) ;;
+        *) echo "Unknown option: $arg (use -local to inject the already staged files)"; exit 1 ;;
+    esac
+done
 
 ASP_RAW_BASE=https://raw.githubusercontent.com/lawrence-jeff/aioslimproto/ma-squeezelite-browse/aioslimproto
 SQZ_RAW_BASE=https://raw.githubusercontent.com/lawrence-jeff/server/dev-squeezelite-browse/music_assistant/providers/squeezelite
 # The icon list is hardcoded rather than read from the GitHub API, which avoids a second kind of
 # network call, its rate limit and a JSON-parsing dependency. A new icon in static/ has to be
-# added here, or -update won't fetch it.
+# added here, or the download won't fetch it.
 SQZ_STATIC_FILES="
 AlbumArtists_100x100_m.png AlbumArtists_225x225_m.png AlbumArtists_40x40_m.png AlbumArtists_41x41_m.png
 Albums_100x100_m.png Albums_225x225_m.png Albums_40x40_m.png Albums_41x41_m.png
@@ -55,22 +61,32 @@ radiosearch_100x100_m.png radiosearch_225x225_m.png radiosearch_41x41_m.png
 "
 SQZ_STATIC_FILES="$SQZ_STATIC_FILES HAExtras/account.png HAExtras/battery.png HAExtras/cctv.png HAExtras/door.png HAExtras/eye.png HAExtras/fan.png HAExtras/flash.png HAExtras/garage.png HAExtras/gauge.png HAExtras/haextras.png HAExtras/information.png HAExtras/lightbulb.png HAExtras/lock.png HAExtras/motion-sensor.png HAExtras/palette.png HAExtras/script-text.png HAExtras/speaker.png HAExtras/television-classic.png HAExtras/thermometer.png HAExtras/thermostat.png HAExtras/toggle-switch.png HAExtras/view-dashboard.png HAExtras/water-percent.png HAExtras/weather-partly-cloudy.png HAExtras/window-open.png"  # HA-EXTRAS
 
+ASP_FILES="cli.py models.py server.py"
+SQZ_FILES="provider.py browselibrary.py player.py strings.json haextras.py"  # HA-EXTRAS (haextras.py, strings.json entry)
+
+# Downloads everything into a temporary directory first and replaces the staged files only when
+# all of it arrived, so a failed download never leaves a mix of old and new files.
 fetch_staged_files() {
     echo "--- downloading patch files from the fork branches (lawrence-jeff/aioslimproto, lawrence-jeff/server) ---"
     mkdir -p "$ASP_SRC" "$SQZ_SRC/static"
-    for f in cli.py models.py server.py; do
-        curl -fsSL "$ASP_RAW_BASE/$f" -o "$ASP_SRC/$f" \
-            || { echo "FAILED: could not download $ASP_RAW_BASE/$f"; exit 1; }
+    tmp=$(mktemp -d "$(dirname "$ASP_SRC")/.download.XXXXXX")
+    mkdir -p "$tmp/aioslimproto" "$tmp/server/static"
+    for f in $ASP_FILES; do
+        curl -fsSL "$ASP_RAW_BASE/$f" -o "$tmp/aioslimproto/$f" \
+            || { echo "FAILED: could not download $ASP_RAW_BASE/$f (nothing was changed; -local uses the staged files)"; rm -rf "$tmp"; exit 1; }
     done
-    for f in provider.py browselibrary.py player.py strings.json haextras.py; do  # HA-EXTRAS (haextras.py, strings.json entry)
-        curl -fsSL "$SQZ_RAW_BASE/$f" -o "$SQZ_SRC/$f" \
-            || { echo "FAILED: could not download $SQZ_RAW_BASE/$f"; exit 1; }
+    for f in $SQZ_FILES; do
+        curl -fsSL "$SQZ_RAW_BASE/$f" -o "$tmp/server/$f" \
+            || { echo "FAILED: could not download $SQZ_RAW_BASE/$f (nothing was changed; -local uses the staged files)"; rm -rf "$tmp"; exit 1; }
     done
     for f in $SQZ_STATIC_FILES; do
-        mkdir -p "$(dirname "$SQZ_SRC/static/$f")"  # HA-EXTRAS (static/HAExtras/)
-        curl -fsSL "$SQZ_RAW_BASE/static/$f" -o "$SQZ_SRC/static/$f" \
-            || { echo "FAILED: could not download $SQZ_RAW_BASE/static/$f"; exit 1; }
+        mkdir -p "$(dirname "$tmp/server/static/$f")"  # HA-EXTRAS (static/HAExtras/)
+        curl -fsSL "$SQZ_RAW_BASE/static/$f" -o "$tmp/server/static/$f" \
+            || { echo "FAILED: could not download $SQZ_RAW_BASE/static/$f (nothing was changed; -local uses the staged files)"; rm -rf "$tmp"; exit 1; }
     done
+    cp -R "$tmp/aioslimproto/." "$ASP_SRC/"
+    cp -R "$tmp/server/." "$SQZ_SRC/"
+    rm -rf "$tmp"
     echo "--- download complete ---"
 }
 
@@ -95,15 +111,17 @@ if ! docker inspect $CONTAINER > /dev/null 2>&1; then
         || { echo "FAILED: $CONTAINER still doesn't exist after restarting MA via Supervisor"; exit 1; }
 fi
 
-echo "=== Checking the staged patch files are present ==="
-if $FORCE_UPDATE; then
-    echo "--- -update passed: re-downloading, overwriting whatever's currently staged ---"
-    fetch_staged_files
-elif [ ! -f "$ASP_SRC/cli.py" ] || [ ! -f "$SQZ_SRC/provider.py" ]; then
-    echo "--- staged files missing - this looks like a first run, downloading them ---"
-    fetch_staged_files
+echo "=== Getting the patch files ==="
+if $USE_LOCAL; then
+    echo "--- -local: using the files already staged in $(dirname "$ASP_SRC"), not downloading ---"
+    for f in $ASP_FILES; do
+        [ -f "$ASP_SRC/$f" ] || { echo "FAILED: $ASP_SRC/$f is not staged - stage it, or run without -local to download"; exit 1; }
+    done
+    for f in $SQZ_FILES; do
+        [ -f "$SQZ_SRC/$f" ] || { echo "FAILED: $SQZ_SRC/$f is not staged - stage it, or run without -local to download"; exit 1; }
+    done
 else
-    echo "--- staged files already present, using them as-is (pass -update to refresh) ---"
+    fetch_staged_files
 fi
 
 echo ""

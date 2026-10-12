@@ -1,5 +1,7 @@
 # MA-SqueezeliteBrowse
 
+> **Important: if you downloaded `reinject.sh` before 12 October 2026**, your copy fetches the server files from an older branch that is no longer updated. Download `reinject.sh` again (step 2 under Usage) and run it; it always fetches the current files.
+
 This patches the [Music Assistant](https://music-assistant.io/) Squeezelite provider so a Squeezelite client (e.g. a Logitech Media Server-style client, or [piCorePlayer](https://www.picoreplayer.org/)) can **browse the Music Assistant media library directly from the client**, instead of only playing whatever Music Assistant pushes to it.
 
 Browsing isn't the only thing it changes. It also fixes a number of existing issues with how the stock provider pushes content to the client:
@@ -64,8 +66,8 @@ This repo holds only `reinject.sh` and this README. `reinject.sh` downloads the 
    ```
    ./reinject.sh
    ```
-   `reinject.sh` auto-detects your Music Assistant container (no need to find/set its name yourself). On first run, since nothing's downloaded yet, it fetches the patch files straight from the branches of the two forks (no git, no full clone) into `/config/ma-squeezelite-browse`, copies them into the container, verifies each patched file landed in the container by comparing checksums (it fails loudly if any differ), confirms the provider module still imports cleanly, and restarts the container so Music Assistant picks up the changes.
-6. Run `./reinject.sh -update` any time later to re-download and pick up newer patches. Plain `./reinject.sh` never re-downloads on its own - once the files are there, it just re-injects whatever's already downloaded (faster, and works offline).
+   `reinject.sh` auto-detects your Music Assistant container (no need to find/set its name yourself). Every run first fetches the current patch files straight from the branches of the two forks (no git, no full clone) into `/config/ma-squeezelite-browse`, replacing what is there (a failed download changes nothing), copies them into the container, verifies each patched file landed in the container by comparing checksums (it fails loudly if any differ), confirms the provider module still imports cleanly, and restarts the container so Music Assistant picks up the changes.
+6. Plain `./reinject.sh` always downloads the latest files, so running it again later picks up newer patches. `./reinject.sh -local` skips the download and injects the files already in `/config/ma-squeezelite-browse` instead - for working offline, or for files you copied there yourself while developing. (`-update` is still accepted and does what a plain run does.)
 
    Consider disabling Music Assistant's Auto Update while you're testing this. An auto-update - or any restart of the app that recreates the container - reverts back to stock (see below) and means running `reinject.sh` again.
 

@@ -24,7 +24,7 @@ The intent is to let you quickly test these changes against your own real Music 
 The patched source itself isn't in this repo - it lives in two forks: `aioslimproto` on a `ma-squeezelite-browse` branch based on upstream `main`, and `server` on a `dev-squeezelite-browse` branch based on upstream `dev`:
 
 - [lawrence-jeff/aioslimproto](https://github.com/lawrence-jeff/aioslimproto/tree/ma-squeezelite-browse) - the `aioslimproto` package (`cli.py`, `models.py`, `server.py`).
-- [lawrence-jeff/server](https://github.com/lawrence-jeff/server/tree/dev-squeezelite-browse) - `music_assistant/providers/squeezelite/` (`provider.py`, `browselibrary.py`, `player.py`, and the `static/` menu icons).
+- [lawrence-jeff/server](https://github.com/lawrence-jeff/server/tree/dev-squeezelite-browse) - `music_assistant/providers/squeezelite/` (`provider.py`, `browselibrary.py`, `player.py`, `strings.json`, `haextras.py` for the experimental HA Extras, and the `static/` menu icons), with its unit tests in `tests/providers/squeezelite/` and the setting text in `music_assistant/translations/en.json`. The branch is built on Music Assistant's `dev`, which is ahead of the latest release.
 
 This repo holds only `reinject.sh` and this README. `reinject.sh` downloads the files it needs from those two branches itself (see Usage below) - there's nothing to clone or set up by hand.
 
@@ -34,7 +34,7 @@ This repo holds only `reinject.sh` and this README. `reinject.sh` downloads the 
 
 ## Requirements
 
-- Music Assistant **2.10.5 or later**, due to a dependency on `aioslimproto` 3.2.3.
+- Music Assistant **2.10.5 or later**, due to a dependency on `aioslimproto` 3.2.3. Tested on 2.10.5 and 2.10.6. The server files come from a branch built on Music Assistant's `dev`, which is ahead of the release, so if `dev` changes the Squeezelite provider or the core code it uses, a fresh download may stop matching an older release.
 - Home Assistant running Music Assistant as an add-on/container.
 - SSH access to Home Assistant **with Docker access** — the [Advanced SSH & Web Terminal](https://github.com/hassio-addons/addon-ssh) add-on works well for this.
 - `docker` and `curl` available in that SSH session.
@@ -91,7 +91,7 @@ HA Extras has these panels:
 
 All Cameras and Dashboards also register as screensaver providers, so you can configure the device to show a fixed one (10 sec refresh) or rotate through them every 10 seconds.
 
-Worlds smallest HA dashboard running as a screensaver on old Squeezebox UE
+World's smallest HA dashboard running as a screensaver on old Squeezebox UE
 
 ![A dashboard on a UE radio](20261011_015325.jpg)
 

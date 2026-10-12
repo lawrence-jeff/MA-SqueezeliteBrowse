@@ -66,8 +66,8 @@ This repo holds only `reinject.sh` and this README. `reinject.sh` downloads the 
    ```
    ./reinject.sh
    ```
-   `reinject.sh` auto-detects your Music Assistant container (no need to find/set its name yourself). Every run first fetches the current patch files straight from the branches of the two forks (no git, no full clone) into `/config/ma-squeezelite-browse`, replacing what is there (a failed download changes nothing), copies them into the container, verifies each patched file landed in the container by comparing checksums (it fails loudly if any differ), confirms the provider module still imports cleanly, and restarts the container so Music Assistant picks up the changes.
-6. Plain `./reinject.sh` always downloads the latest files, so running it again later picks up newer patches. `./reinject.sh -local` skips the download and injects the files already in `/config/ma-squeezelite-browse` instead - for working offline, or for files you copied there yourself while developing. (`-update` is still accepted and does what a plain run does.)
+   `reinject.sh` auto-detects your Music Assistant container. Every run first fetches the current patch files straight from the branches of the two forks (no git, no full clone) into `/config/ma-squeezelite-browse`, replacing what is there (a failed download changes nothing), copies them into the container, verifies each patched file landed in the container by comparing checksums (it fails loudly if any differ), confirms the provider module still imports cleanly, and restarts the container so Music Assistant picks up the changes.
+6. Plain `./reinject.sh` always downloads the latest files, so running it again later picks up newer patches. `./reinject.sh -local` skips the download and injects the files already in `/config/ma-squeezelite-browse` instead - for working offline, or for files you copied there yourself while developing.
 
    Consider disabling Music Assistant's Auto Update while you're testing this. An auto-update - or any restart of the app that recreates the container - reverts back to stock (see below) and means running `reinject.sh` again.
 

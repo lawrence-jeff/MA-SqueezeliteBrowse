@@ -115,3 +115,15 @@ entry and Up moves back. In a text list (an album's songs, the queue, a long-pre
 i.e. it selects the highlighted row, so use Down to move. A Right pressed by mistake in a list starts or chooses something:
 once it chose "Play Now (keep queue)" on a one-song album. A long press is Enter held for 3.5 seconds and, once the menu is
 open, nothing more is sent unless a case is meant to choose a row.
+
+## Checking that a change does not alter what the server sends
+
+`tools/snapshot.py` records the server's replies to about 100 browse requests (the menus, every list, artist and album views, the
+long-press menus, the queue and the HA Extras panels) and compares two recordings. No device is touched: the requests are the
+JSON-RPC calls a device makes. It uses the server address and player id from `config.json`.
+
+    python3 tools/snapshot.py record before.json      # before the change
+    python3 tools/snapshot.py compare before.json     # after it: lists every request whose reply differs
+
+The queue reply (it carries a timestamp) and the HA status panel (live sensor values) are left out of the comparison; `--ignore`
+changes that. The exit status is 1 when anything differs, so it also works in a script.

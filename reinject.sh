@@ -19,7 +19,7 @@ echo "=== Using Music Assistant container: $CONTAINER ==="
 # Staging directories. Full dev checkouts stay on the development machine, never under /config (a
 # clone there would be swept into Home Assistant's backups); this script only needs the few
 # patched files below. Stage them by hand (network share, rsync), or stage nothing and the first
-# run downloads them from the ma-squeezelite-browse branches of the two forks.
+# run downloads them from the branches of the two forks (ma-squeezelite-browse and dev-squeezelite-browse).
 ASP_SRC=/config/ma-squeezelite-browse/aioslimproto
 SQZ_SRC=/config/ma-squeezelite-browse/server
 SQZ_DEST=/app/venv/lib/python3.14/site-packages/music_assistant/providers/squeezelite
@@ -33,7 +33,7 @@ if [ "$1" = "-update" ]; then
 fi
 
 ASP_RAW_BASE=https://raw.githubusercontent.com/lawrence-jeff/aioslimproto/ma-squeezelite-browse/aioslimproto
-SQZ_RAW_BASE=https://raw.githubusercontent.com/lawrence-jeff/server/ma-squeezelite-browse/music_assistant/providers/squeezelite
+SQZ_RAW_BASE=https://raw.githubusercontent.com/lawrence-jeff/server/dev-squeezelite-browse/music_assistant/providers/squeezelite
 # The icon list is hardcoded rather than read from the GitHub API, which avoids a second kind of
 # network call, its rate limit and a JSON-parsing dependency. A new icon in static/ has to be
 # added here, or -update won't fetch it.
@@ -56,7 +56,7 @@ radiosearch_100x100_m.png radiosearch_225x225_m.png radiosearch_41x41_m.png
 SQZ_STATIC_FILES="$SQZ_STATIC_FILES HAExtras/account.png HAExtras/battery.png HAExtras/cctv.png HAExtras/door.png HAExtras/eye.png HAExtras/fan.png HAExtras/flash.png HAExtras/garage.png HAExtras/gauge.png HAExtras/haextras.png HAExtras/information.png HAExtras/lightbulb.png HAExtras/lock.png HAExtras/motion-sensor.png HAExtras/palette.png HAExtras/script-text.png HAExtras/speaker.png HAExtras/television-classic.png HAExtras/thermometer.png HAExtras/thermostat.png HAExtras/toggle-switch.png HAExtras/view-dashboard.png HAExtras/water-percent.png HAExtras/weather-partly-cloudy.png HAExtras/window-open.png"  # HA-EXTRAS
 
 fetch_staged_files() {
-    echo "--- downloading patch files from the ma-squeezelite-browse branches (lawrence-jeff/aioslimproto, lawrence-jeff/server) ---"
+    echo "--- downloading patch files from the fork branches (lawrence-jeff/aioslimproto, lawrence-jeff/server) ---"
     mkdir -p "$ASP_SRC" "$SQZ_SRC/static"
     for f in cli.py models.py server.py; do
         curl -fsSL "$ASP_RAW_BASE/$f" -o "$ASP_SRC/$f" \

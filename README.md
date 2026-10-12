@@ -6,7 +6,7 @@ This patches the [Music Assistant](https://music-assistant.io/) Squeezelite prov
 
 Browsing isn't the only thing it changes. It also fixes a number of existing issues with how the stock provider pushes content to the client:
 
-- Seek
+- Seek fwd/back either drag via touch or button
 - Stream/track detail display
 - Shuffle/repeat button sync with Music Assistant
 - Queue display and track management (add/remove/reorder) sync with the server

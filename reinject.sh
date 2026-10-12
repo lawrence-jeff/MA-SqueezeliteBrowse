@@ -137,6 +137,20 @@ docker cp $SQZ_SRC/player.py        $CONTAINER:$SQZ_DEST/player.py
 docker cp $SQZ_SRC/strings.json     $CONTAINER:$SQZ_DEST/strings.json  # HA-EXTRAS (its settings text)
 docker cp $SQZ_SRC/haextras.py     $CONTAINER:$SQZ_DEST/haextras.py  # HA-EXTRAS
 
+# HA-EXTRAS: Music Assistant reads setting labels from translations/en.json, which is generated from
+# strings.json and does not have this one. Only this entry is added, so the rest of the file stays
+# as the installed release has it.
+docker exec $CONTAINER python3 -c "
+import json, pathlib
+root = pathlib.Path('$SQZ_DEST')
+entry = json.loads((root / 'strings.json').read_text())['config_entries']['expose_ha_extras']
+path = root.parent.parent / 'translations' / 'en.json'
+data = json.loads(path.read_text())
+for field, text in entry.items():
+    data['provider.squeezelite.config_entries.expose_ha_extras.' + field] = text
+path.write_text(json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True) + '\\n')
+"
+
 # The menu icons (browselibrary.py's STATIC_DIR is Path(__file__).parent / "static") must land as
 # $SQZ_DEST/static next to browselibrary.py. Checked first because an empty or missing
 # $SQZ_SRC/static would otherwise be hidden by the solid-color placeholder, and you would only see

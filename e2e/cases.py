@@ -416,6 +416,8 @@ def home_menu(ctx: Ctx) -> None:
 
 @case("E2E-17", "Keyboard navigation opens each My Music list", "Home & navigation > My Music")
 def navigate_my_music(ctx: Ctx) -> None:
+    if not ctx.require_ui():
+        return
     if ctx.ui is None or ctx.server_log is None:
         ctx.skip("ui", "needs player_host in the config and the server log")
         return
@@ -473,6 +475,8 @@ def empty_queue_menu(ctx: Ctx) -> None:
 
 @case("E2E-20", "Long press on the device shows the five MA rows for a track, album and artist", "Long press > menus")
 def long_press_on_screen(ctx: Ctx) -> None:
+    if not ctx.require_ui():
+        return
     if ctx.ui is None:
         ctx.skip("ui", "needs player_host in the config")
         return
@@ -568,6 +572,8 @@ def _queue_row_menu(ctx: Ctx, label: str, row: int, present: tuple[str, ...], ab
     "Single press > Tracks, Long press > Tracks, Queue view, Now Playing",
 )
 def build_and_manage_queue(ctx: Ctx) -> None:
+    if not ctx.require_ui():
+        return
     if ctx.ui is None or ctx.ma is None or ctx.client_log is None:
         ctx.skip("setup", "needs player_host, E2E_MA_TOKEN and the client log")
         return
@@ -668,6 +674,8 @@ def build_and_manage_queue(ctx: Ctx) -> None:
     ("radio",),
 )
 def build_radio_queue(ctx: Ctx) -> None:
+    if not ctx.require_ui():
+        return
     if ctx.ui is None or ctx.ma is None or ctx.client_log is None:
         ctx.skip("setup", "needs player_host, E2E_MA_TOKEN and the client log")
         return
@@ -740,6 +748,8 @@ def build_radio_queue(ctx: Ctx) -> None:
     "Long press > album tracks",
 )
 def play_album_from_here(ctx: Ctx) -> None:
+    if not ctx.require_ui():
+        return
     if ctx.ui is None or ctx.ma is None:
         ctx.skip("setup", "needs player_host and E2E_MA_TOKEN")
         return
@@ -795,10 +805,10 @@ def power_on_resumes(ctx: Ctx) -> None:
         _expect_queue(ctx, "start", [ctx.media["track"]["name"]], current=0)
         ctx.rpc.call("stop")
         time.sleep(2)
-        say("Powering the player off from the device (i), then on (k)")
-        ctx.ui.press("i", settle=1.0)
+        say("Powering the player off from the device, then on")
+        ctx.ui.power_off()
         ctx.check("the player powered off", wait_until(lambda: ctx.rpc.call("power", "?").get("_power") == 0, timeout=10))
-        ctx.ui.press("k", settle=1.0)
+        ctx.ui.power_on()
         ctx.check("the player powered on", wait_until(lambda: ctx.rpc.call("power", "?").get("_power") == 1, timeout=10))
         ctx.check("the queued track resumed", wait_until(lambda: ctx.rpc.status().get("mode") == "play", timeout=15), f"mode {ctx.rpc.status().get('mode')}")
     finally:
@@ -863,6 +873,8 @@ SETTINGS_ALARM_INDEX = 3  # Settings grid on the piCorePlayer: Home Menu, Image 
     "Settings > Alarm Clock (what the alarm button opens)",
 )
 def alarm_not_supported(ctx: Ctx) -> None:
+    if not ctx.require_ui():
+        return
     menu = ctx.rpc.call("menu", 0, 100).get("item_loop", [])
     by_id = {row.get("id"): row for row in menu}
     entry = by_id.get("settingsAlarm")
@@ -912,6 +924,8 @@ def _row_title(row: dict[str, Any]) -> str:
     "Settings > HA Extras (Cameras, Dashboards, Controls, Scenes and Scripts, Status)",
 )
 def ha_extras(ctx: Ctx) -> None:
+    if not ctx.require_ui():
+        return
     if ctx.ma is None:
         ctx.skip("setup", "needs E2E_MA_TOKEN to tick the device setting")
         return
@@ -1145,7 +1159,7 @@ def provider_off_and_on(ctx: Ctx) -> None:
 @case(
     "E2E-32",
     "Pressing mute on the device silences the player without stopping the stream, and unmuting brings it back",
-    "Playback > the device's mute key (u)",
+    "Playback > the device's mute key",
 )
 def mute_keeps_the_stream(ctx: Ctx) -> None:
     if ctx.ui is None or ctx.ma is None:
@@ -1161,27 +1175,59 @@ def mute_keeps_the_stream(ctx: Ctx) -> None:
         return float(ctx.rpc.status().get("time") or 0)
 
     try:
-        ctx.rpc.mixer("volume", 40)
+        ctx.rpc.mixer("volume", ctx.test_volume)
         ctx.rpc.clear()
         time.sleep(2)
         ctx.rpc.play_control(cmd="load", **ctx.media["track"]["params"])
         ctx.check("the track plays", wait_until(lambda: ctx.rpc.status().get("mode") == "play", timeout=20))
         time.sleep(3)
-        say("Pressing the device's mute key (u), twice with a pause between")
-        ctx.ui.press("u", settle=1.0)
+        say("Pressing the device's mute key, twice with a pause between")
+        ctx.ui.mute()
         ctx.check("muted: Music Assistant reports it", wait_until(lambda: bool(player().get("volume_muted")), timeout=10))
-        ctx.check("muted: the volume it will return to is kept", player().get("volume_level") == 40, str(player().get("volume_level")))
+        ctx.check("muted: the volume it will return to is kept", player().get("volume_level") == ctx.test_volume, str(player().get("volume_level")))
         before = position()
         time.sleep(6)
         ctx.check("muted: the stream is still playing", ctx.rpc.status().get("mode") == "play", str(ctx.rpc.status().get("mode")))
         ctx.check("muted: the position keeps advancing", position() >= before + 4, f"{before} -> {position()}")
-        ctx.ui.press("u", settle=1.0)
+        ctx.ui.mute()
         ctx.check("unmuted: Music Assistant reports it", wait_until(lambda: not player().get("volume_muted"), timeout=10))
-        ctx.check("unmuted: the volume is back", player().get("volume_level") == 40, str(player().get("volume_level")))
+        ctx.check("unmuted: the volume is back", player().get("volume_level") == ctx.test_volume, str(player().get("volume_level")))
         before = position()
         time.sleep(6)
         ctx.check("unmuted: the stream is still playing", ctx.rpc.status().get("mode") == "play", str(ctx.rpc.status().get("mode")))
         ctx.check("unmuted: the position keeps advancing", position() >= before + 4, f"{before} -> {position()}")
     finally:
         ctx.rpc.call("stop")
+        ctx.rpc.mixer("volume", original)
+
+
+@case(
+    "E2E-33",
+    "The device's volume control raises and lowers the player's volume",
+    "Playback > the volume keys (JiveLite) or the volume knob (Radio)",
+)
+def volume_control(ctx: Ctx) -> None:
+    if ctx.ui is None:
+        ctx.skip("setup", "needs player_host")
+        return
+    original = ctx.rpc.mixer("volume")
+
+    def level() -> int:
+        return int(ctx.rpc.mixer("volume"))
+
+    try:
+        ctx.rpc.mixer("volume", ctx.test_volume)  # well away from both ends
+        time.sleep(1)
+        base = level()
+        ctx.check("the starting level is set", base == ctx.test_volume, str(base))
+        say("Raising the volume on the device 3 clicks, then lowering it 3 clicks")
+        ctx.ui.volume_up(3)
+        time.sleep(1.5)
+        raised = level()
+        ctx.check("volume up raised the level", raised > base, f"{base} -> {raised}")
+        ctx.ui.volume_down(3)
+        time.sleep(1.5)
+        lowered = level()
+        ctx.check("volume down brought it back", lowered == base, f"{raised} -> {lowered}")
+    finally:
         ctx.rpc.mixer("volume", original)

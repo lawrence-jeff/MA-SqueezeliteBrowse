@@ -14,7 +14,12 @@ from PIL import Image, ImageOps
 def _passes(image: Image.Image) -> list[Image.Image]:
     """The screenshot prepared two ways: light text on dark and dark text on light both read well."""
     grey = ImageOps.autocontrast(image.convert("L"))
-    big = grey.resize((grey.width * 2, grey.height * 2), Image.LANCZOS)
+    if grey.width >= 1000:
+        # a 1920-wide JiveLite screen reads well at 2x
+        big = grey.resize((grey.width * 2, grey.height * 2), Image.LANCZOS)
+    else:
+        # a small panel (the Radio's 320x240) reads best at 4x and cut to black and white
+        big = grey.resize((grey.width * 4, grey.height * 4), Image.LANCZOS).point(lambda v: 255 if v > 140 else 0)
     return [big, ImageOps.invert(big)]
 
 

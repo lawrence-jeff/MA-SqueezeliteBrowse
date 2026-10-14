@@ -46,10 +46,19 @@ LIVE = True  # checks are printed as they are recorded, so the end summary only 
 SYMBOL = {PASS: "PASS", FAIL: "FAIL", WARN: "WARN", SKIP: "SKIP"}
 
 
-def load_config(path: Path) -> dict:
+def load_config(path: Path, device: str | None = None) -> dict:
     if not path.exists():
         sys.exit(f"No config at {path}. Copy config.example.json to config.json and fill it in.")
-    return json.loads(path.read_text())
+    config = json.loads(path.read_text())
+    devices = config.pop("devices", {})
+    if device:
+        if device not in devices:
+            sys.exit(f"No device '{device}' in {path}; the config has {sorted(devices) or 'none'}.")
+        # a device's keys replace the top-level ones (player_id, player_name, player_host, driver, client_log_url ...)
+        config = {**config, **devices[device]}
+        if "client_log_url" not in devices[device]:
+            config.pop("client_log_url", None)
+    return config
 
 
 def build_ctx(config: dict, args: argparse.Namespace) -> Ctx:
@@ -65,9 +74,14 @@ def build_ctx(config: dict, args: argparse.Namespace) -> Ctx:
     media = cases.discover(rpc, config.get("prefer", {}))
     ui = None
     if config.get("player_host"):
-        from ui import PlayerUi
+        if config.get("driver") == "radio":
+            from ui_radio import RadioUi
 
-        ui = PlayerUi(config["player_host"])
+            ui = RadioUi(config["player_host"])
+        else:
+            from ui import PlayerUi
+
+            ui = PlayerUi(config["player_host"])
         # The presets are the first entries of My Music; the key navigation steps over however many
         # the server lists (counted before each navigation, since saving the player's config changes them).
         def count_presets() -> int:
@@ -78,7 +92,9 @@ def build_ctx(config: dict, args: argparse.Namespace) -> Ctx:
     ma = None
     if os.environ.get("E2E_MA_TOKEN"):
         ma = MaApi(urlparse(config["server_url"]).hostname or "", os.environ["E2E_MA_TOKEN"])
-    return Ctx(rpc, client_log, server_log, media, ui, ma)
+    ctx = Ctx(rpc, client_log, server_log, media, ui, ma)
+    ctx.test_volume = int(config.get("test_volume", ctx.test_volume))
+    return ctx
 
 
 def check_player(rpc: Rpc, config: dict, force: bool) -> None:
@@ -237,6 +253,7 @@ class Tee:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--config", default=str(HERE / "config.json"))
+    parser.add_argument("--device", help="run against one of the config's \"devices\" instead of the top-level player")
     parser.add_argument("--only", help="comma-separated case ids, e.g. E2E-01,E2E-04")
     parser.add_argument("--list", action="store_true", help="list the cases and exit")
     parser.add_argument("--dry-run", action="store_true", help="discover media and show the plan only")
@@ -256,7 +273,7 @@ def main() -> int:
             print(f"{c.case_id}  {c.title}   [{c.covers}]")
         return 0
 
-    config = load_config(Path(args.config))
+    config = load_config(Path(args.config), args.device)
     ctx = build_ctx(config, args)
     check_player(ctx.rpc, config, args.force)
     chosen = select(args.only)

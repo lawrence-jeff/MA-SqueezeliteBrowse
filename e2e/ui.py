@@ -14,6 +14,7 @@ from harness import say
 KEYS = {
     "up": 103, "down": 108, "left": 105, "right": 106, "enter": 28, "esc": 1, "backspace": 14,
     "pageup": 104, "pagedown": 109, "shift": 42, "tab": 15, "space": 57, "[": 26, "]": 27,
+    "-": 12, "=": 13,
 }
 _ROWS = {"qwertyuiop": 16, "asdfghjkl": 30, "zxcvbnm": 44}
 for _letters, _first in _ROWS.items():
@@ -273,6 +274,41 @@ class PlayerUi:
 
     def to_top(self) -> None:
         self.press(*["up"] * 12, settle=0.1)
+
+    # -- Device actions shared with the Squeezebox Radio driver (ui_radio.RadioUi). A case that only needs these
+    # works on either device; the raw key names above are JiveLite's own and are used by the cases that
+    # navigate lists. On JiveLite each action is a hotkey.
+    kind = "jivelite"
+
+    def go_home(self) -> None:
+        self.home()
+
+    def select(self) -> None:
+        self.press("enter", settle=2.0)
+
+    def back(self) -> None:
+        self.press("esc", settle=1.0)
+
+    def long_select(self) -> None:
+        self.long_press("enter")
+
+    def power_on(self) -> None:
+        self.press("k", settle=1.0)
+
+    def power_off(self) -> None:
+        self.press("i", settle=1.0)
+
+    def mute(self) -> None:
+        """The mute key; pressing it again unmutes."""
+        self.press("u", settle=1.0)
+
+    def volume_up(self, clicks: int = 1) -> None:
+        for _ in range(clicks):
+            self.press("=", settle=0.5)
+
+    def volume_down(self, clicks: int = 1) -> None:
+        for _ in range(clicks):
+            self.press("-", settle=0.5)
 
     def open_my_music(self, label: str) -> None:
         """From anywhere: go home, open My Music, then open the entry called label."""

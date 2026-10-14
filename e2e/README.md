@@ -22,6 +22,22 @@ Music Assistant's own websocket API needs a login token. The JSON-RPC on the Squ
    volume to 0 for the run and restores it afterwards when you pass `--silent`; by default it plays at the player's current volume. Mute is not used:
    Squeezelite treats the protocol's mute as an output off switch that the next stream undoes.
 
+### Running on a Squeezebox Radio as well as the piCorePlayer
+
+`config.json` can list more devices under `"devices"` (see `config.example.json`). `--device radio` runs against that one: its keys
+(`player_id`, `player_name`, `player_host`, `driver`, `test_volume`) replace the top-level ones, and with no `client_log_url` the client-log
+checks are skipped. `driver: "radio"` uses `ui_radio.py`; without it the JiveLite driver in `ui.py` is used. `test_volume` is the level the
+cases that need sound set (40 if absent; the Radio is loud, so use 10).
+
+The two drivers share these device actions: `go_home`, `select`, `back`, `long_select`, `power_on`, `power_off`, `mute`, `volume_up`,
+`volume_down`, `screenshot`, `reboot`. A case written with them runs on either device (E2E-24, 25, 32 and 33 are). The cases that
+navigate lists with JiveLite's own keys (E2E-17, 20, 21, 22, 23, 26, 27) call `ctx.require_ui()` and are skipped on the Radio.
+
+On the Radio keys are input events written to the evdev nodes over ssh (the kernel has no uinput) and screenshots are read from the
+framebuffer. The scroll knob's click is `-1` for down, the volume knob is a different code (only the volume actions may use it), mute is
+the volume knob's push, and Home is a toggle there (pressed on the home menu it opens Now Playing). The Radio ignores a key that follows
+another within about two seconds, so the driver spaces them. Its password comes from `E2E_RADIO_PASSWORD` (default 1234).
+
 `--list` shows the cases, `--only E2E-04,E2E-07` runs a few, `-v` shows passing checks.
 Reports (markdown and json) go to `e2e/reports/`.
 

@@ -408,6 +408,7 @@ class Ctx:
     ) -> None:
         self.ui = ui
         self.ma = ma
+        self.test_volume = 40  # the level the cases that need sound set; run.py takes it from the device's "test_volume"
         self.live = False  # print each check as it is recorded
         self.rpc = rpc
         self.client_log = client_log
@@ -438,6 +439,17 @@ class Ctx:
         check.name = f"{prefix}{check.name}"
         self.result.checks.append(check)
         self._echo(check.status, check.name, check.detail)
+
+    def require_ui(self, kind: str = "jivelite") -> bool:
+        """True when the device under test is driven by this kind of UI driver; otherwise record a skip.
+
+        For the cases that navigate lists with JiveLite's own keys; the Radio driver only has the shared device actions.
+        """
+        have = getattr(self.ui, "kind", None)
+        if have != kind:
+            self.skip("on-screen navigation", f"written for the {kind} driver; this device uses {have or 'no UI driver'}")
+            return False
+        return True
 
     def snap(self, label: str) -> Path:
         """Screenshot the player now and return the file, to be read later with check_snap."""

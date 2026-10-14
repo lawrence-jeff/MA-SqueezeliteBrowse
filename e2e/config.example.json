@@ -7,6 +7,15 @@
   "server_ssh_key": "~/.ssh/id_ed25519",
   "server_container": "app_xxxxxxxx_music_assistant",
   "player_host": "PCP_HOST (optional, enables the keyboard-navigation case)",
+  "devices": {
+    "radio": {
+      "player_id": "00:04:20:aa:bb:cc",
+      "player_name": "name the Radio shows in Music Assistant",
+      "player_host": "RADIO_HOST",
+      "driver": "radio",
+      "test_volume": 10
+    }
+  },
   "expected_placeholders": ["playlist-1"],
   "prefer": {
     "track": "",

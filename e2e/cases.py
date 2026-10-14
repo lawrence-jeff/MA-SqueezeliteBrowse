@@ -1141,3 +1141,47 @@ def provider_off_and_on(ctx: Ctx) -> None:
     finally:
         save(was_enabled)
 
+
+@case(
+    "E2E-32",
+    "Pressing mute on the device silences the player without stopping the stream, and unmuting brings it back",
+    "Playback > the device's mute key (u)",
+)
+def mute_keeps_the_stream(ctx: Ctx) -> None:
+    if ctx.ui is None or ctx.ma is None:
+        ctx.skip("setup", "needs player_host and E2E_MA_TOKEN")
+        return
+    player_id = ctx.rpc.player_id
+    original = ctx.rpc.mixer("volume")
+
+    def player() -> dict[str, Any]:
+        return ctx.ma.call("players/get", player_id=player_id)
+
+    def position() -> float:
+        return float(ctx.rpc.status().get("time") or 0)
+
+    try:
+        ctx.rpc.mixer("volume", 40)
+        ctx.rpc.clear()
+        time.sleep(2)
+        ctx.rpc.play_control(cmd="load", **ctx.media["track"]["params"])
+        ctx.check("the track plays", wait_until(lambda: ctx.rpc.status().get("mode") == "play", timeout=20))
+        time.sleep(3)
+        say("Pressing the device's mute key (u), twice with a pause between")
+        ctx.ui.press("u", settle=1.0)
+        ctx.check("muted: Music Assistant reports it", wait_until(lambda: bool(player().get("volume_muted")), timeout=10))
+        ctx.check("muted: the volume it will return to is kept", player().get("volume_level") == 40, str(player().get("volume_level")))
+        before = position()
+        time.sleep(6)
+        ctx.check("muted: the stream is still playing", ctx.rpc.status().get("mode") == "play", str(ctx.rpc.status().get("mode")))
+        ctx.check("muted: the position keeps advancing", position() >= before + 4, f"{before} -> {position()}")
+        ctx.ui.press("u", settle=1.0)
+        ctx.check("unmuted: Music Assistant reports it", wait_until(lambda: not player().get("volume_muted"), timeout=10))
+        ctx.check("unmuted: the volume is back", player().get("volume_level") == 40, str(player().get("volume_level")))
+        before = position()
+        time.sleep(6)
+        ctx.check("unmuted: the stream is still playing", ctx.rpc.status().get("mode") == "play", str(ctx.rpc.status().get("mode")))
+        ctx.check("unmuted: the position keeps advancing", position() >= before + 4, f"{before} -> {position()}")
+    finally:
+        ctx.rpc.call("stop")
+        ctx.rpc.mixer("volume", original)

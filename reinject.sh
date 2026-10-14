@@ -61,7 +61,7 @@ radiosearch_100x100_m.png radiosearch_225x225_m.png radiosearch_41x41_m.png
 "
 SQZ_STATIC_FILES="$SQZ_STATIC_FILES HAExtras/account.png HAExtras/battery.png HAExtras/cctv.png HAExtras/door.png HAExtras/eye.png HAExtras/fan.png HAExtras/flash.png HAExtras/garage.png HAExtras/gauge.png HAExtras/haextras.png HAExtras/information.png HAExtras/lightbulb.png HAExtras/lock.png HAExtras/motion-sensor.png HAExtras/palette.png HAExtras/script-text.png HAExtras/speaker.png HAExtras/television-classic.png HAExtras/thermometer.png HAExtras/thermostat.png HAExtras/toggle-switch.png HAExtras/view-dashboard.png HAExtras/water-percent.png HAExtras/weather-partly-cloudy.png HAExtras/window-open.png"  # HA-EXTRAS
 
-ASP_FILES="cli.py models.py server.py"
+ASP_FILES="cli.py client.py models.py server.py"
 SQZ_FILES="provider.py browselibrary.py player.py strings.json haextras.py"  # HA-EXTRAS (haextras.py, strings.json entry)
 
 # Downloads everything into a temporary directory first and replaces the staged files only when
@@ -126,11 +126,11 @@ fi
 
 echo ""
 echo "=== Checking MA's bundled aioslimproto version (need >= 3.2.3) ==="
-# Our cli.py/models.py/server.py track upstream main, which has drifted from the 3.2.3 release in
-# the other aioslimproto files (client.py especially). That is fine for MA >= 2.10.5, which
-# requires aioslimproto==3.2.3 and is the combination tested against real devices. An older MA may
-# bundle something below that, which this patch set has not been tested against, so fail here
-# instead of overlaying onto an unknown base.
+# Our cli.py/client.py/models.py/server.py track upstream main, which has drifted a little from the
+# 3.2.3 release in the other aioslimproto files. That is fine for MA >= 2.10.5, which requires
+# aioslimproto==3.2.3 and is the combination tested against real devices. An older MA may bundle
+# something below that, which this patch set has not been tested against, so fail here instead of
+# overlaying onto an unknown base.
 docker exec $CONTAINER python3 -c "
 import importlib.metadata as m
 import sys
@@ -141,9 +141,10 @@ sys.exit(0 if v >= (3, 2, 3) else 1)
 
 echo ""
 echo "=== Applying our aioslimproto patches on top of MA's own bundled copy ==="
-# Only the files we patch are overlaid on MA's own aioslimproto: our cli.py/models.py/server.py on
+# Only the files we patch are overlaid on MA's own aioslimproto: our cli.py/client.py/models.py/server.py on
 # top of the stock 3.2.3 for everything else.
 docker cp $ASP_SRC/cli.py    $CONTAINER:$ASP_DEST/cli.py
+docker cp $ASP_SRC/client.py $CONTAINER:$ASP_DEST/client.py
 docker cp $ASP_SRC/models.py $CONTAINER:$ASP_DEST/models.py
 docker cp $ASP_SRC/server.py $CONTAINER:$ASP_DEST/server.py
 
@@ -202,7 +203,7 @@ verify_landed() {
         || { echo "FAILED: $2 in the container differs from $1 - patch didn't land"; exit 1; }
     echo "verified: $(basename "$1")"
 }
-for f in cli.py models.py server.py; do verify_landed "$ASP_SRC/$f" "$ASP_DEST/$f"; done
+for f in cli.py client.py models.py server.py; do verify_landed "$ASP_SRC/$f" "$ASP_DEST/$f"; done
 for f in provider.py browselibrary.py player.py strings.json haextras.py; do verify_landed "$SQZ_SRC/$f" "$SQZ_DEST/$f"; done  # HA-EXTRAS (haextras.py, strings.json)
 # The sh -c wrapper is required: `docker exec` without a shell finds an installed package's `test`
 # console script (which runs unittest) instead of the shell's file test.

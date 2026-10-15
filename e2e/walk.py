@@ -26,10 +26,10 @@ from run import load_config  # noqa: E402
 from walkthrough.steps import STEPS  # noqa: E402
 
 
-def prepare_track(rpc: Rpc, volume: int) -> bool:
-    """Load the first library track, paused, so Now Playing has something to show (at a low volume, then paused)."""
+def prepare_track(rpc: Rpc, volume: int, count: int = 1) -> bool:
+    """Load library tracks, paused, so Now Playing (and the queue) have something to show: the first is loaded, the rest added."""
     rpc.call("mixer", "volume", volume)
-    items = rpc.call("browselibrary", "items", 0, 3, "menu:1", "mode:tracks").get("item_loop", [])
+    items = rpc.call("browselibrary", "items", 0, 5, "menu:1", "mode:tracks").get("item_loop", [])
     if not items:
         return False
     rpc.call("playlist", "clear")
@@ -39,6 +39,8 @@ def prepare_track(rpc: Rpc, volume: int) -> bool:
         if rpc.status().get("mode") == "play" and (rpc.status().get("time") or 0) >= 1:
             break
         time.sleep(0.5)
+    for item in items[1:count]:
+        rpc.call("playlistcontrol", "cmd:add", f"track_id:{item['commonParams']['track_id']}")
     time.sleep(3)
     rpc.call("pause", 1)
     return True
@@ -58,7 +60,8 @@ def capture(args: argparse.Namespace) -> int:
 
     rpc = Rpc(config["server_url"], config["player_id"])
     volume = int(config.get("test_volume", 10))
-    needs_track = any("track" in step.needs for step in chosen)
+    needs_track = any(step.needs for step in chosen)
+    queue_size = 5 if any("queue" in step.needs for step in chosen) else 1
     original_volume = int(rpc.call("mixer", "volume", "?").get("_mixer", 0))
 
     def ready() -> None:
@@ -74,20 +77,26 @@ def capture(args: argparse.Namespace) -> int:
         time.sleep(5)
         if needs_track:
             say(f"Preparing a paused track at volume {volume} for Now Playing")
-            prepare_track(rpc, volume)
+            prepare_track(rpc, volume, queue_size)
+            time.sleep(10)  # the "Adding" popup that loading the queue brings up must be gone before the first screenshot
 
     try:
         driver = config.get("driver")
         if driver == "radio":
             from ui_radio import RadioUi  # noqa: PLC0415
-            from walkthrough.radio import RadioWalker, bmp_to_jpeg  # noqa: PLC0415
+            from walkthrough.macro import bmp_to_jpeg  # noqa: PLC0415
+            from walkthrough.radio import RadioWalker  # noqa: PLC0415
 
             walker = RadioWalker(RadioUi(config["player_host"]))
-            # macro steps are numbered from 1 in the order given, so run the chosen ones and map back to the real numbers
-            shots = walker.run(chosen, ready)
-            files = {numbers[i - 1]: bmp_to_jpeg(data, out / f"{numbers[i - 1]:02d}.jpg") for i, data in shots.items()}
         else:
-            sys.exit(f"No walkthrough wrapper for the {driver or 'JiveLite'} driver yet; see walkthrough/radio.py for the Radio's.")
+            from ui import PlayerUi  # noqa: PLC0415
+            from walkthrough.macro import bmp_to_jpeg  # noqa: PLC0415
+            from walkthrough.pcp import PcpWalker  # noqa: PLC0415
+
+            walker = PcpWalker(PlayerUi(config["player_host"]))
+        # macro steps are numbered from 1 in the order given, so run the chosen ones and map back to the real numbers
+        shots = walker.run(chosen, ready)
+        files = {numbers[i - 1]: bmp_to_jpeg(data, out / f"{numbers[i - 1]:02d}.jpg") for i, data in shots.items()}
     finally:
         if needs_track:
             rpc.call("playlist", "clear")

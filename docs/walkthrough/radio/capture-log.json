@@ -4,12 +4,13 @@
   "title": "Main Menu",
   "status": "ok",
   "read": [
-   "SB - UE2",
-   "Now Playing",
-   "My Music",
-   "Choose Player",
-   "ES Settings",
-   "8:56PM"
+   "Adding",
+   "ss",
+   "\u00b0 nag fh",
+   "nol",
+   "A:",
+   "All Hands Against His Own",
+   "A?"
   ]
  },
  {
@@ -18,274 +19,357 @@
   "status": "ok",
   "read": [
    "The Black Keys - 10 A.M.",
-   "1/1",
-   "The Black Keys * Rubber Factory",
-   "On\u2019",
-   "Ls",
-   "fi A",
-   ", 4",
-   "+)"
+   "1'5",
+   "The Black Keys + Rubber Factory",
+   "Us",
+   "Le |",
+   "~\u00b0 ~ 4",
+   "Ly",
+   "\u2014\u2014"
   ]
  },
  {
   "n": 3,
-  "title": "My Music",
+  "title": "Queue (Current Playlist)",
   "status": "ok",
   "read": [
-   "Music Assistant",
-   "*\"4/8 Dave Matthews Band R",
-   "Se Jimmy Buffett Radio",
-   "~ Favorites",
-   "&- Artists",
-   "il",
-   "8:56PM",
-   "SE Jimmy Buffett Radio"
+   "Current Playlist",
+   "ae",
+   "aed",
+   "[Ihe Black Ke",
+   "ys-10 45",
+   "The Black Keys",
+   "a The Black Keys - Act Nice a:",
+   "re"
   ]
  },
  {
   "n": 4,
+  "title": "Long press on a queue item",
+  "status": "ok",
+  "read": [
+   "Play Now",
+   "Play Next",
+   "Move to End",
+   "Delete item"
+  ]
+ },
+ {
+  "n": 5,
+  "title": "My Music",
+  "status": "ok",
+  "read": [
+   "Music Assistant",
+   "*\"\u00ab;8 Dave Matthews Band R",
+   "ad Jimmy Buffett Radio",
+   "ey Favorites",
+   "&- Artists",
+   "il",
+   "9:46PM",
+   "oe Favorites"
+  ]
+ },
+ {
+  "n": 6,
   "title": "My Music - Favorites",
   "status": "ok",
   "read": [
    "Favorites",
    "ey All Favorites",
    "Artists",
-   "ey Albums",
-   "oI Tracks",
-   "8:56PM",
+   "ee Albums",
+   "oi Tracks",
+   "9:46PM",
+   "\u2014 All Favorites",
    "(o>) Albums"
   ]
  },
  {
-  "n": 5,
+  "n": 7,
   "title": "My Music - Artists",
   "status": "ok",
   "read": [
    "Artists",
    "Alesso & Nate Smith >",
-   "Lf att",
-   "Hi",
    "Avril Lavigne",
-   "we",
-   "Bailey Zimmerman",
-   "3 * The Black Keys"
+   "g Bailey Zimmerman",
+   "oe * The Black Keys",
+   "9:46PM",
+   "A Bailey Zimmerman",
+   "if"
   ]
  },
  {
-  "n": 6,
+  "n": 8,
   "title": "My Music - Artists - Avril Lavigne",
   "status": "ok",
   "read": [
    "Avril Lavigne",
    "Wal Can You Die From A Brok",
-   "\u201c' Nate Smith/Avril Lavigne",
-   "8:56PM"
+   "~ Nate Smith\u2019Avril Lavigne",
+   "il",
+   "9:46PM",
+   "-\u2014_"
   ]
  },
  {
-  "n": 7,
+  "n": 9,
+  "title": "Long press on an artist",
+  "status": "ok",
+  "read": [
+   "Play Now (keep queue)",
+   "Play Next (keep queue)",
+   "_ Add to the queue",
+   "Play Now (replace queue)",
+   "Play Next (replace queue)"
+  ]
+ },
+ {
+  "n": 10,
   "title": "My Music - Albums",
   "status": "ok",
   "read": [
    "Albums",
-   "\u2018\u00ab All the Great Hits",
-   "#4 Jimmy Buffett",
-   "aA ee)",
+   "\u2018'\u00ab All the Great Hits",
+   "\u00a5\u00a2 Jimmy Buffett",
    "The Best Of The Atlantic ' >",
-   "i\u00a2",
+   "id",
    "Twisted Sister",
-   "Wal California Gold"
+   "ra California Gold",
+   "ri"
   ]
  },
  {
-  "n": 8,
+  "n": 11,
   "title": "My Music - Albums - an album",
   "status": "ok",
   "read": [
    "All the Great Hits",
    "Jimmy Buffett",
    "Why Don't We Get Drunk",
-   "8:56PM"
-  ]
- },
- {
-  "n": 9,
-  "title": "My Music - Tracks",
-  "status": "ok",
-  "read": [
-   "Tracks",
-   ". .",
-   "ae)",
-   "**. 10 A.M. Automatic",
-   "The Black Keys",
-   "\u201cAY Act Nice and Gentle",
-   "a)",
-   ", te"
-  ]
- },
- {
-  "n": 10,
-  "title": "My Music - Playlists",
-  "status": "ok",
-  "read": [
-   "Playlists",
-   "pews Discover Weekly",
-   "TES EK",
-   "VVC",
-   "os oo",
-   "66",
-   "FileSystemPlayList",
-   "mao ay"
-  ]
- },
- {
-  "n": 11,
-  "title": "My Music - Audiobooks",
-  "status": "ok",
-  "read": [
-   "Audiobooks",
-   "e~ The Art of War",
-   "8:57PM",
-   "~ The Art of War"
+   "il",
+   "9:46PM"
   ]
  },
  {
   "n": 12,
-  "title": "My Music - Podcasts",
+  "title": "Long press on an album",
   "status": "ok",
   "read": [
-   "Podcasts",
-   "ae",
-   "The Adam and Dr. Drev >",
-   "Show.",
-   "iim Adam Carolla Show",
-   "il",
-   "8:57PM",
-   "(="
+   "Play Now (keep queue)",
+   "Play Next (keep queue)",
+   "Add to the queue",
+   "Play Now (replace queue)",
+   "Play Next (replace queue)"
   ]
  },
  {
   "n": 13,
-  "title": "My Music - Podcasts - a podcast",
+  "title": "My Music - Tracks",
   "status": "ok",
   "read": [
-   "The Adam and Dr. Drew Show",
-   "#2107 - Dr. Drew Reacts to ti",
-   "Classic #803 Big Swinging Black",
-   "#2107 - Why Dating Is Dying w/ El",
-   "Classic #217: Big Freedia",
-   "8:57PM"
+   "Tracks",
+   "%\u00b0. 10 A.M. Automatic",
+   "ae)",
+   "The Black Keys",
+   "on",
+   "*- Act Nice and Gentle",
+   "arae 5",
+   "\u201c3\u00b0 Keroplane Blues"
   ]
  },
  {
   "n": 14,
-  "title": "My Music - Radio",
+  "title": "Long press on a track",
   "status": "ok",
   "read": [
-   "Radio",
-   "eis |",
-   "The 615: Today's Count",
-   "Gay 80s Radio",
-   "\u2018t.",
-   "AC/DC Radio",
-   "Whe | Agatha All Along (feat. Kath",
-   "8:57PM"
+   "Play Now (keep queue)",
+   "Play Next (keep queue)",
+   "Add to the queue",
+   "Play Now (replace queue)",
+   "Play Next (replace queue)"
   ]
  },
  {
   "n": 15,
+  "title": "My Music - Playlists",
+  "status": "ok",
+  "read": [
+   "Playlists",
+   "byw, Discover Weekly",
+   "me a",
+   "ee eo |",
+   "PORE",
+   "reer",
+   "\u2018ao a)",
+   "FileSystemPlayList"
+  ]
+ },
+ {
+  "n": 16,
+  "title": "My Music - Audiobooks",
+  "status": "ok",
+  "read": [
+   "Audiobooks",
+   "Lm",
+   "The Art of War",
+   "il",
+   "9:47PM"
+  ]
+ },
+ {
+  "n": 17,
+  "title": "My Music - Podcasts",
+  "status": "ok",
+  "read": [
+   "Podcasts",
+   "f=",
+   "ee",
+   "The Adam and Dr. Drev >",
+   "m,. Adam Carolla Show",
+   "Show.",
+   "il",
+   "9:47PM"
+  ]
+ },
+ {
+  "n": 18,
+  "title": "My Music - Podcasts - a podcast",
+  "status": "ok",
+  "read": [
+   "The Adam and Dr. Drew Show",
+   "#2107 - Dr. Drew Reacts to tl",
+   "Classic #803 Big Swinging Black",
+   "#2107 - Why Dating Is Dying w/ El",
+   "Classic #217: Big Freedia",
+   "9:47PM"
+  ]
+ },
+ {
+  "n": 19,
+  "title": "My Music - Radio",
+  "status": "ok",
+  "read": [
+   "Radio",
+   "The 615: Today's Count",
+   "80s Radio",
+   "AC/DC Radio",
+   "on | Agatha All Along (feat. Kath",
+   "9:48PM",
+   "Co",
+   "\u2014_"
+  ]
+ },
+ {
+  "n": 20,
+  "title": "Long press on a radio station",
+  "status": "ok",
+  "read": [
+   "Play Now (keep queue)",
+   "Play Next (keep queue)",
+   "Add to the queue",
+   "Play Now (replace queue)",
+   "Play Next (replace queue)"
+  ]
+ },
+ {
+  "n": 21,
   "title": "My Music - Search",
   "status": "ok",
   "read": [
    "Search",
    "as",
-   "8:57PM",
-   "Ce,",
-   "Ca,"
+   "it",
+   "9:48PM",
+   "Ca,",
+   "ii",
+   "Ce,"
   ]
  },
  {
-  "n": 16,
+  "n": 22,
   "title": "My Music - Switch Library",
   "status": "ok",
   "read": [
    "Libraries",
    "Music Assistant",
-   "J >",
-   "8:57PM",
-   "-_\u2014"
+   "J>",
+   "it",
+   "9:48PM"
   ]
  },
  {
-  "n": 17,
+  "n": 23,
   "title": "Settings",
   "status": "ok",
   "read": [
    "Settings",
    "Audio Settings",
-   "\u201c0: Brightness",
+   "308 Brightness",
    "Choose Player",
-   "13/4 Home Menu",
-   "8:58PM",
-   "\u201cOr Brightness",
-   "1/4 Home Menu"
+   "Home Menu",
+   "il",
+   "9:48PM",
+   "3@q Brightness"
   ]
  },
  {
-  "n": 18,
+  "n": 24,
   "title": "Settings - Alarm Clock",
   "status": "ok",
   "read": [
    "Alarm Clock",
    "lot Supported - HA can trigg >",
-   "8:58PM"
+   "it",
+   "9:48PM",
+   "il"
   ]
  },
  {
-  "n": 19,
+  "n": 25,
   "title": "Settings - HA Extras",
   "status": "ok",
   "read": [
    "HA Extras",
-   "at Cameras",
+   "Cameras",
    "a Dashboards",
-   "o Controls",
-   "cS Scenes and Scripts",
+   "io Controls",
+   "e Scenes and Scripts",
    "il",
-   "8:58PM",
-   "it Cameras"
+   "9:48PM",
+   "o Controls"
   ]
  },
  {
-  "n": 20,
+  "n": 26,
   "title": "Settings - HA Extras - Cameras",
   "status": "ok",
   "read": [
    "Cameras",
    "Doorbell",
-   "ot Driveway",
+   "Driveway",
    "il",
-   "8:58PM",
-   "at Driveway"
+   "9:48PM",
+   "-\u2014_"
   ]
  },
  {
-  "n": 21,
+  "n": 27,
   "title": "Settings - HA Extras - Cameras - a camera",
   "status": "ok",
   "read": [
-   "=o,",
-   "107147400 CL watt f$h pn",
-   "LA",
-   "Pn",
-   "re '",
-   "re",
-   "od",
-   "fi"
+   "las tarcaces CU ER pn",
+   "SS",
+   "aaa",
+   "~>>",
+   "ce",
+   "<\u00e9",
+   "Ss",
+   "aS"
   ]
  },
  {
-  "n": 22,
+  "n": 28,
   "title": "Settings - HA Extras - Dashboards",
   "status": "ok",
   "read": [
@@ -293,66 +377,68 @@
    "a Schedule Dashboard",
    "a Squeezebox",
    "il",
-   "8:58PM",
-   "-\u2014",
-   "an Squeezebox"
+   "9:49PM",
+   "\u2014_"
   ]
  },
  {
-  "n": 23,
+  "n": 29,
   "title": "Settings - HA Extras - Dashboards - a dashboard",
   "status": "ok",
   "read": [
-   "sa",
-   "59",
-   "te",
-   "we",
-   "Seaee",
+   "om",
+   "49",
+   "9:",
    "red",
-   "one",
-   "wets"
+   "awe",
+   "a)",
+   "wee",
+   "nie eee"
   ]
  },
  {
-  "n": 24,
+  "n": 30,
   "title": "Settings - HA Extras - Controls",
   "status": "ok",
   "read": [
    "Controls",
-   "8 Jeft's Desk New",
+   "8 Jefi's Desk New",
    "Jeff's Fire TV",
    "idle",
    "@ Porch Lights",
    "il",
-   "8:59PM"
+   "9:49PM",
+   "\u2014_"
   ]
  },
  {
-  "n": 25,
+  "n": 31,
   "title": "Settings - HA Extras - Controls - a control",
   "status": "ok",
   "read": [
    "Jeff's Desk New",
    "Jeff's Desk New is idle",
-   "Turn On",
+   "aivigeme@le",
    "Turn Off",
    "Cancel",
-   "8:59PM"
+   "il",
+   "9:50PM",
+   "Turn On"
   ]
  },
  {
-  "n": 26,
+  "n": 32,
   "title": "Settings - HA Extras - Scenes and Scripts",
   "status": "ok",
   "read": [
    "Scenes and Scripts",
-   "cS Test Scene",
+   "e Test Scene",
    "il",
-   "8:59PM"
+   "9:50PM"
   ]
  },
  {
-  "n": 27,
+  "n": 33,
   "title": "Settings - HA Extras - Scenes and Scripts - a scene",
   "status": "ok",
   "read": [
@@ -360,18 +446,18 @@
    "Run",
    "Cancel",
    "it",
-   "8:59PM"
+   "9:50PM"
   ]
  },
  {
-  "n": 28,
+  "n": 34,
   "title": "Settings - HA Extras - Status",
   "status": "ok",
   "read": [
    "Status",
-   "Lennox Discharge Tem y",
+   "-ennox Discharge Tem 5",
+   "72.8 \u00b0F",
    "CG",
-   "73.15",
    "Lennox HVAC State",
    "oO",
    "OFF",

@@ -15,7 +15,7 @@ Browsing isn't the only thing it changes. It also fixes a number of existing iss
 
 It also includes experimental changes to integrate media and non media related Home Assistant items (scenes, sensors, switches). These also register screensavers on the devices showing camera(s) and dashboard(s). See Experimental Proof Of Concept below.
 
-[Menu walkthrough](docs/MA-SqueezeliteBrowse-menu-walkthrough-all.pdf) (PDF, 58 pages): screenshots of the same menus on two devices, from the main menu through My Music, Now Playing, Settings and HA Extras. The first 29 pages are a piCorePlayer (JiveLite, 1920x1080, captured 2026-10-11, which also shows the queue); the next 29 are a Squeezebox Radio (SqueezePlay, 320x240, captured 2026-10-14). Each device's pages are also on their own: [piCorePlayer](docs/MA-SqueezeliteBrowse-menu-walkthrough.pdf), [Squeezebox Radio](docs/MA-SqueezeliteBrowse-menu-walkthrough-UE2.pdf).
+[Menu walkthrough](docs/MA-SqueezeliteBrowse-menu-walkthrough-all.pdf) (PDF, 70 pages): screenshots of the same menus on two devices, from the main menu through Now Playing and the queue, My Music, Settings and HA Extras, plus the menus a long press opens (an artist, album, track, radio station and queue item). The first 35 pages are a piCorePlayer (JiveLite, 1920x1080), the next 35 a Squeezebox Radio (SqueezePlay, 320x240); both were captured on 2026-10-14 from the same list of steps. Each device's pages are also on their own: [piCorePlayer](docs/MA-SqueezeliteBrowse-menu-walkthrough.pdf), [Squeezebox Radio](docs/MA-SqueezeliteBrowse-menu-walkthrough-UE2.pdf).
 
 It works by injecting patched provider files and a patched `aioslimproto` package straight into the running `music_assistant` container's Python environment.
 

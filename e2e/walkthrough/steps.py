@@ -6,8 +6,9 @@ presses or macro that does it.
 
 A path entry is
   - a label: the entry whose text starts with it (case matters, as on screen);
-  - FIRST: the first entry of the menu that is open (for "any item": a list of albums, a podcast ...);
-  - Do("go"): a device action instead of a menu entry.
+  - FIRST: the first entry of the menu that is open (for "any item": a list of albums, a podcast ...); Nth(n): the n-th;
+  - Do("go"): a device action instead of a menu entry; LONG_PRESS is the long press that opens an entry's menu and QUEUE opens the
+    queue (the current playlist).
 
 Nothing that plays something or changes a setting is ever chosen: the steps only open menus and views.
 """
@@ -17,6 +18,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 FIRST = "<first entry>"
+
+
+@dataclass(frozen=True)
+class Nth:
+    """The n-th entry (counting from 1) of the menu that is open, e.g. the second row of the queue."""
+
+    n: int
 
 
 @dataclass(frozen=True)
@@ -31,11 +39,16 @@ class Step:
     title: str  # the slide title
     path: tuple = ()  # labels, FIRST and Do(...) to open from the home menu
     note: str = ""  # the slide note
-    needs: tuple = ()  # what the server must have ready first: "track" (something loaded in the queue)
+    needs: tuple = ()  # what the server must have ready first: "track" (a paused track) or "queue" (five tracks queued)
     wait: float = 1.45  # seconds to let the last screen settle before the screenshot (long text starts to scroll about a second after it opens)
     optional: bool = False  # not an error when the entry is not there (a setting that is off, nothing in the library)
     expect: str = ""  # text the screen should show, read with OCR as a check; empty to skip it
 
+
+# A long press on the highlighted entry: opens its menu (play now, play next, add ...). Each device does it its own way.
+LONG_PRESS = Do("long_press")
+# open the current playlist (the queue) from wherever the device is
+QUEUE = Do("queue")
 
 STEPS: tuple[Step, ...] = (
     Step("Main Menu", (), "Home screen. Settings holds the HA Extras entry when it is enabled for the device.", expect="Settings"),
@@ -44,6 +57,20 @@ STEPS: tuple[Step, ...] = (
         ("Now Playing",),
         "Shows the current track from the Music Assistant queue.",
         needs=("track",),
+    ),
+    Step(
+        "Queue (Current Playlist)",
+        (QUEUE,),
+        "The player's queue as Music Assistant has it.",
+        needs=("queue",),
+    ),
+    Step(
+        "Long press on a queue item",
+        (QUEUE, Nth(4), LONG_PRESS),
+        "The menu of a queue item (not the one playing or the next): Play Now, Play Next, Move to End and Delete item, as in the Music Assistant app.",
+        needs=("queue",),
+        wait=3.0,
+        optional=True,
     ),
     Step(
         "My Music",
@@ -60,18 +87,42 @@ STEPS: tuple[Step, ...] = (
         "then matching radio stations.",
         optional=True,
     ),
+    Step(
+        "Long press on an artist",
+        ("My Music", "Artists", FIRST, LONG_PRESS),
+        "The menu of an artist: play everything by them, add it to the queue, play it next.",
+        optional=True,
+    ),
     Step("My Music - Albums", ("My Music", "Albums"), expect="Albums"),
     Step(
         "My Music - Albums - an album",
         ("My Music", "Albums", FIRST),
         "Tracks of one album. Tapping a track adds it (plays it when the queue is idle); long press for Play Album from here.",
     ),
+    Step(
+        "Long press on an album",
+        ("My Music", "Albums", FIRST, LONG_PRESS),
+        "The menu of an album: play it, play it next, add it to the queue.",
+        optional=True,
+    ),
     Step("My Music - Tracks", ("My Music", "Tracks"), expect="Tracks"),
+    Step(
+        "Long press on a track",
+        ("My Music", "Tracks", FIRST, LONG_PRESS),
+        "The menu of a track: play now, play next, add to the queue, and more.",
+        optional=True,
+    ),
     Step("My Music - Playlists", ("My Music", "Playlists"), expect="Playlists"),
     Step("My Music - Audiobooks", ("My Music", "Audiobooks"), expect="Audiobooks", optional=True),
     Step("My Music - Podcasts", ("My Music", "Podcasts"), expect="Podcasts"),
     Step("My Music - Podcasts - a podcast", ("My Music", "Podcasts", FIRST), "Episodes of one podcast.", optional=True),
     Step("My Music - Radio", ("My Music", "Radio"), expect="Radio"),
+    Step(
+        "Long press on a radio station",
+        ("My Music", "Radio", FIRST, LONG_PRESS),
+        "The menu of a radio station.",
+        optional=True,
+    ),
     Step("My Music - Search", ("My Music", "Search"), "The search text entry."),
     Step("My Music - Switch Library", ("My Music", "Switch Library"), expect="Libraries"),
     Step("Settings", ("Settings",), "Includes Alarm Clock (says alarms are not supported) and HA Extras.", expect="Settings"),

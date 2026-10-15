@@ -24,9 +24,9 @@ Music Assistant's own websocket API needs a login token. The JSON-RPC on the Squ
 
 ### The menu walkthrough
 
-`python3 e2e/walk.py capture --device radio --out <folder>` walks the menus on a device and saves a screenshot of each step, and
+`python3 e2e/walk.py capture [--device radio] --out <folder>` walks the menus on a device and saves a screenshot of each step, and
 `python3 e2e/walk.py pdf ...` builds the PDF. The steps are written once for every device in `walkthrough/steps.py`; a wrapper per
-device does them (`walkthrough/radio.py` for the Radio). See `docs/walkthrough/README.md`.
+device does them (`walkthrough/radio.py`, `walkthrough/pcp.py`). See `docs/walkthrough/README.md`.
 
 ### Running on a Squeezebox Radio as well as the piCorePlayer
 

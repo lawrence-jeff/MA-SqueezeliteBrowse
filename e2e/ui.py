@@ -272,6 +272,46 @@ class PlayerUi:
         "Audiobooks", "Podcasts", "Radio", "Search", "Switch Library",
     ]
 
+    # Home grid geometry at 1920x1080: tiles 384 wide and 306 high from y=147, five to a row.
+    def highlighted_tile_label(self) -> str:
+        """The label under the highlighted tile of a grid screen (the box around it is grey on the purple wallpaper)."""
+        import ocr  # noqa: PLC0415
+        from PIL import Image  # noqa: PLC0415
+
+        with tempfile.TemporaryDirectory() as tmp:
+            shot = self.screenshot(Path(tmp) / "tiles.jpg")
+            image = Image.open(shot).convert("RGB")
+
+            def grayness(box: tuple[int, int, int, int]) -> float:
+                pixels = list(image.crop(box).resize((8, 8)).getdata())
+                red = sum(p[0] for p in pixels) / len(pixels)
+                blue = sum(p[2] for p in pixels) / len(pixels)
+                return -abs(red - blue)
+
+            best = max(
+                ((grayness((c * 384 + 4, 147 + r * 306 + 4, c * 384 + 60, 147 + r * 306 + 100)), c, r) for r in range(3) for c in range(5)),
+            )
+            _, col, row = best
+            crop = Path(tmp) / "label.png"
+            image.crop((col * 384, 147 + row * 306 + 236, col * 384 + 384, 147 + row * 306 + 300)).save(crop)
+            return " ".join(ocr.read_lines(crop))
+
+    def quit_jivelite(self) -> None:
+        """Close JiveLite from the Quit tile of the home menu (its wrapper script starts it again).
+
+        Moves along the tiles until the highlighted one reads Quit and only then presses Enter, so no other tile is ever chosen.
+        """
+        say("Closing JiveLite from its Quit tile")
+        self.home()
+        self.to_top()
+        for _ in range(7):
+            label = self.highlighted_tile_label()
+            if "quit" in label.lower():
+                self.press("enter", settle=1.0)
+                return
+            self.press("right", settle=0.5)
+        raise RuntimeError("could not find the Quit tile on the home menu")
+
     def to_top(self) -> None:
         self.press(*["up"] * 12, settle=0.1)
 

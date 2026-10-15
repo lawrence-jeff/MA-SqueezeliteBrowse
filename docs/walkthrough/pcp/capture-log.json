@@ -1,0 +1,462 @@
+[
+ {
+  "n": 1,
+  "title": "Main Menu",
+  "status": "ok",
+  "read": [
+   "jeffpicoreplayer-2",
+   "Now Playing",
+   "My Music",
+   "Choose Player",
+   "Settings",
+   "Quit"
+  ]
+ },
+ {
+  "n": 2,
+  "title": "Now Playing",
+  "status": "ok",
+  "read": [
+   "Paused",
+   "\u2014\u2014\u2014",
+   "BLACK KEYS ,",
+   "UPPER FACTORY",
+   "k Keys - 10 A.M. Automatic T",
+   "3%",
+   "[LOT res",
+   "The Black Keys"
+  ]
+ },
+ {
+  "n": 3,
+  "title": "Queue (Current Playlist)",
+  "status": "ok",
+  "read": [
+   "Current Playlist",
+   "be = The Black Keys - 10 A.M. Automatic",
+   "\"= The Black Keys",
+   "\u201d, \u00a9 The Black Keys - Act Nice and Gentle",
+   "\u2018= The Black Keys",
+   "ppai- \u201cThe Black Keys - Aeroplane Blues",
+   "\u201c= The Black Keys",
+   "Jordan Davis"
+  ]
+ },
+ {
+  "n": 4,
+  "title": "Long press on a queue item",
+  "status": "ok",
+  "read": [
+   "Current Playlist",
+   "Play Now",
+   "The Black Keys - 10 A.M. Automatic",
+   "ay! Nextick Keys",
+   "Cay",
+   "\"7 The Black Keys - Act Nice and Gentle",
+   "oventa|Endeys",
+   "he Black Keys - Aeroplane Blues"
+  ]
+ },
+ {
+  "n": 5,
+  "title": "My Music",
+  "status": "ok",
+  "read": [
+   "Music Assistant",
+   "OLN...",
+   "V.",
+   "41077",
+   "0,",
+   "MA Playlist",
+   "Z107.7 St. Louis",
+   "Favorites"
+  ]
+ },
+ {
+  "n": 6,
+  "title": "My Music - Favorites",
+  "status": "ok",
+  "read": [
+   "Favorites",
+   "OLN...",
+   "All Favorites",
+   "Artists",
+   "Albums",
+   "Tracks",
+   "Playlists",
+   "an"
+  ]
+ },
+ {
+  "n": 7,
+  "title": "My Music - Artists",
+  "status": "ok",
+  "read": [
+   "Artists",
+   "BK",
+   "L Ff",
+   "i I",
+   "(4",
+   "* )",
+   "eer",
+   "ja"
+  ]
+ },
+ {
+  "n": 8,
+  "title": "My Music - Artists - Avril Lavigne",
+  "status": "ok",
+  "read": [
+   "Avril Lavigne",
+   "Can You Die From A Broken Heart",
+   "a .\u2122 Nate Smith/Avril Lavigne",
+   "al .\u2122 Nate Smith/Avril Lavigne"
+  ]
+ },
+ {
+  "n": 9,
+  "title": "Long press on an artist",
+  "status": "ok",
+  "read": [
+   "Artists",
+   "Play Now (keep queue)",
+   ": I",
+   "Ps",
+   "\u2014\u2014",
+   "all",
+   "Lay",
+   "ra"
+  ]
+ },
+ {
+  "n": 10,
+  "title": "My Music - Albums",
+  "status": "ok",
+  "read": [
+   "Albums",
+   "at HATE",
+   "ft",
+   "(wi7{ED",
+   "7I7ER",
+   "EARS",
+   "Nate\u00b0Smith",
+   "RO:"
+  ]
+ },
+ {
+  "n": 11,
+  "title": "My Music - Albums - an album",
+  "status": "ok",
+  "read": [
+   "All the Great Hits",
+   "Jimmy Buffett",
+   "Why Don't We Get Drunk"
+  ]
+ },
+ {
+  "n": 12,
+  "title": "Long press on an album",
+  "status": "ok",
+  "read": [
+   "Albums",
+   "Play Now (keep queue)",
+   "Nate\u00b0Smith",
+   "cates",
+   "\u2014\u2014",
+   "Play N",
+   "keep qu",
+   "1 \u00a5"
+  ]
+ },
+ {
+  "n": 13,
+  "title": "My Music - Tracks",
+  "status": "ok",
+  "read": [
+   "Tracks",
+   "ACK",
+   "BLACK KEYS",
+   "RUSSER FACTORY",
+   "a)",
+   "RUBBER FACTORY",
+   "2,",
+   "JAVIS"
+  ]
+ },
+ {
+  "n": 14,
+  "title": "Long press on a track",
+  "status": "ok",
+  "read": [
+   "Tracks",
+   "acy Now (keep SCENE,",
+   "weve? > BS",
+   "CLACK KEYS (ar",
+   "RUSGER FACTOR:",
+   "BACK KEYS ~ ai",
+   "ie",
+   "RUPGER FACTOR:"
+  ]
+ },
+ {
+  "n": 15,
+  "title": "My Music - Playlists",
+  "status": "ok",
+  "read": [
+   "Playlists",
+   "eT.",
+   "oe",
+   "bed",
+   "DIScove",
+   "WEEK",
+   "oY",
+   "Discover Weekly"
+  ]
+ },
+ {
+  "n": 16,
+  "title": "My Music - Audiobooks",
+  "status": "ok",
+  "read": [
+   "Audiobooks",
+   "The Art",
+   "of War",
+   "Sunzi",
+   "The Art of War",
+   "le"
+  ]
+ },
+ {
+  "n": 17,
+  "title": "My Music - Podcasts",
+  "status": "ok",
+  "read": [
+   "Podcasts",
+   "ES",
+   "The",
+   "Adam",
+   "Carolla",
+   "ADAMUE DR",
+   "DREW.",
+   "Show. _"
+  ]
+ },
+ {
+  "n": 18,
+  "title": "My Music - Podcasts - a podcast",
+  "status": "ok",
+  "read": [
+   "The Adam and Dr. Drew Show",
+   "#2107 - Dr. Drew Reacts to the Russian \u2018Pneumonic Plague\u2019 Leak w/ E!",
+   "Classic #803 Big Swinging Black Caucus",
+   "#2107 - Why Dating Is Dying w/ Elisha Krauss | Part 1",
+   "Classic #217: Big Freedia",
+   "#2106 - The Power of Pattern Recognition | Part 2",
+   "Classic #737: Pussiosity",
+   "#2106 - The Power of Pattern Recognition | Part 1"
+  ]
+ },
+ {
+  "n": 19,
+  "title": "My Music - Radio",
+  "status": "ok",
+  "read": [
+   "Radio",
+   "\u00a9 4,",
+   "in",
+   "we",
+   "YX",
+   "Hil",
+   "Ly",
+   "NY"
+  ]
+ },
+ {
+  "n": 20,
+  "title": "Long press on a radio station",
+  "status": "ok",
+  "read": [
+   "Radio",
+   "Play Now (keep queue)",
+   "Wy \u2014\u2014\u2014",
+   "al",
+   "Wffjee",
+   "ree ald",
+   "- Le",
+   "ep qu"
+  ]
+ },
+ {
+  "n": 21,
+  "title": "My Music - Search",
+  "status": "ok",
+  "read": [
+   "Search",
+   "eee",
+   "q we",
+   "y u",
+   "O P",
+   "a s d",
+   "g h",
+   "of"
+  ]
+ },
+ {
+  "n": 22,
+  "title": "My Music - Switch Library",
+  "status": "ok",
+  "read": [
+   "Libraries",
+   "J>",
+   "Music Assistant"
+  ]
+ },
+ {
+  "n": 23,
+  "title": "Settings",
+  "status": "ok",
+  "read": [
+   "Settings",
+   "a]",
+   "OO &",
+   "Home Menu",
+   "Image Viewer",
+   "Screen",
+   "Alarm Clock",
+   "Advanced"
+  ]
+ },
+ {
+  "n": 24,
+  "title": "Settings - Alarm Clock",
+  "status": "ok",
+  "read": [
+   "Alarm Clock",
+   "Not Supported - HA can trigger alarm via automation"
+  ]
+ },
+ {
+  "n": 25,
+  "title": "Settings - HA Extras",
+  "status": "ok",
+  "read": [
+   "HA Extras",
+   "Boo &",
+   "Cameras",
+   "Dashboards",
+   "Controls",
+   "Status",
+   "Scenes and Scripts"
+  ]
+ },
+ {
+  "n": 26,
+  "title": "Settings - HA Extras - Cameras",
+  "status": "ok",
+  "read": [
+   "Cameras",
+   "at Doorbell",
+   "it Driveway",
+   "it Doorbell"
+  ]
+ },
+ {
+  "n": 27,
+  "title": "Settings - HA Extras - Cameras - a camera",
+  "status": "ok",
+  "read": [
+   "\u2014_",
+   "10/14/2026 6",
+   "is",
+   "\\\\",
+   "PP",
+   "7 .",
+   "we\"",
+   "te"
+  ]
+ },
+ {
+  "n": 28,
+  "title": "Settings - HA Extras - Dashboards",
+  "status": "ok",
+  "read": [
+   "Dashboards",
+   "at Schedule Dashboard",
+   "at Squeezebox",
+   "a Schedule Dashboard",
+   "an Squeezebox"
+  ]
+ },
+ {
+  "n": 29,
+  "title": "Settings - HA Extras - Dashboards - a dashboard",
+  "status": "ok",
+  "read": [
+   "i cl a",
+   "Wed",
+   "S off VA",
+   "14",
+   "\u00a9 All day",
+   "& Fog",
+   "66 \u00a9",
+   "AC"
+  ]
+ },
+ {
+  "n": 30,
+  "title": "Settings - HA Extras - Controls",
+  "status": "ok",
+  "read": [
+   "Controls",
+   "Jeff's Desk New",
+   "idle",
+   "Jeff's Fire TV",
+   "@ Porch Lights"
+  ]
+ },
+ {
+  "n": 31,
+  "title": "Settings - HA Extras - Controls - a control",
+  "status": "ok",
+  "read": [
+   "Jeff's Desk New",
+   "idle",
+   "Jeff's Desk New is idle",
+   "Turn On",
+   "Turn Off",
+   "Cancel"
+  ]
+ },
+ {
+  "n": 32,
+  "title": "Settings - HA Extras - Scenes and Scripts",
+  "status": "ok",
+  "read": [
+   "Scenes and Scripts",
+   "cS Test Scene",
+   "e Test Scene"
+  ]
+ },
+ {
+  "n": 33,
+  "title": "Settings - HA Extras - Scenes and Scripts - a scene",
+  "status": "ok",
+  "read": [
+   "Test Scene",
+   "Run",
+   "Cancel"
+  ]
+ },
+ {
+  "n": 34,
+  "title": "Settings - HA Extras - Status",
+  "status": "ok",
+  "read": [
+   "Status",
+   "Lennox Discharge Temperature",
+   "72.8 \u00b0F",
+   "C3 Lennox HVAC State",
+   "ti} Lennox HVAC State"
+  ]
+ }
+]

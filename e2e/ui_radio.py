@@ -12,7 +12,9 @@ It offers the same device actions as PlayerUi (go_home, select, back, up, down, 
 volume_up, volume_down, screenshot, reboot, reset), so a case written with those runs on either device. Navigating My Music
 by raw JiveLite keys is not supported: a case that does it asks for the JiveLite driver (Ctx.require_ui).
 
-The Radio drops a click that comes too soon after another key, so every key waits MIN_GAP seconds after the last one.
+The Radio drops a click that comes too soon after another key, so every key waits MIN_GAP seconds after the last one, and the knob is
+only used for the volume: scrolling lists by injected knob clicks is unreliable on the Radio (see walkthrough/radio.py, which
+navigates with the Radio's own macro engine instead).
 """
 
 from __future__ import annotations
@@ -51,6 +53,10 @@ def _event(kind: int, code: int, value: int) -> bytes:
 
 def _printf(data: bytes) -> str:
     return "".join(f"\\{b:03o}" for b in data)
+
+
+
+
 
 
 class RadioUi:
@@ -209,6 +215,25 @@ class RadioUi:
         else:
             image.save(dest)
         return dest
+
+
+
+
+
+
+
+
+    def ensure_home(self) -> None:
+        """Get to the home menu from wherever the Radio is. Home is a toggle, so look at the screen after each press."""
+        import ocr  # noqa: PLC0415
+
+        for _ in range(3):
+            with tempfile.TemporaryDirectory() as tmp:
+                lines = ocr.read_lines(self.screenshot(Path(tmp) / "home.png"))
+            if all(ocr.contains(lines, word) for word in HOME_WORDS):
+                return
+            self.go_home()
+        raise RuntimeError("could not get the Radio to its home menu")
 
     def reset(
         self, server_log: object, player_id: str, player_row: int = 0, player_name: str | None = None

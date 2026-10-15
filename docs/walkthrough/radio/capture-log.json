@@ -1,0 +1,381 @@
+[
+ {
+  "n": 1,
+  "title": "Main Menu",
+  "status": "ok",
+  "read": [
+   "SB - UE2",
+   "Now Playing",
+   "My Music",
+   "Choose Player",
+   "ES Settings",
+   "8:56PM"
+  ]
+ },
+ {
+  "n": 2,
+  "title": "Now Playing",
+  "status": "ok",
+  "read": [
+   "The Black Keys - 10 A.M.",
+   "1/1",
+   "The Black Keys * Rubber Factory",
+   "On\u2019",
+   "Ls",
+   "fi A",
+   ", 4",
+   "+)"
+  ]
+ },
+ {
+  "n": 3,
+  "title": "My Music",
+  "status": "ok",
+  "read": [
+   "Music Assistant",
+   "*\"4/8 Dave Matthews Band R",
+   "Se Jimmy Buffett Radio",
+   "~ Favorites",
+   "&- Artists",
+   "il",
+   "8:56PM",
+   "SE Jimmy Buffett Radio"
+  ]
+ },
+ {
+  "n": 4,
+  "title": "My Music - Favorites",
+  "status": "ok",
+  "read": [
+   "Favorites",
+   "ey All Favorites",
+   "Artists",
+   "ey Albums",
+   "oI Tracks",
+   "8:56PM",
+   "(o>) Albums"
+  ]
+ },
+ {
+  "n": 5,
+  "title": "My Music - Artists",
+  "status": "ok",
+  "read": [
+   "Artists",
+   "Alesso & Nate Smith >",
+   "Lf att",
+   "Hi",
+   "Avril Lavigne",
+   "we",
+   "Bailey Zimmerman",
+   "3 * The Black Keys"
+  ]
+ },
+ {
+  "n": 6,
+  "title": "My Music - Artists - Avril Lavigne",
+  "status": "ok",
+  "read": [
+   "Avril Lavigne",
+   "Wal Can You Die From A Brok",
+   "\u201c' Nate Smith/Avril Lavigne",
+   "8:56PM"
+  ]
+ },
+ {
+  "n": 7,
+  "title": "My Music - Albums",
+  "status": "ok",
+  "read": [
+   "Albums",
+   "\u2018\u00ab All the Great Hits",
+   "#4 Jimmy Buffett",
+   "aA ee)",
+   "The Best Of The Atlantic ' >",
+   "i\u00a2",
+   "Twisted Sister",
+   "Wal California Gold"
+  ]
+ },
+ {
+  "n": 8,
+  "title": "My Music - Albums - an album",
+  "status": "ok",
+  "read": [
+   "All the Great Hits",
+   "Jimmy Buffett",
+   "Why Don't We Get Drunk",
+   "8:56PM"
+  ]
+ },
+ {
+  "n": 9,
+  "title": "My Music - Tracks",
+  "status": "ok",
+  "read": [
+   "Tracks",
+   ". .",
+   "ae)",
+   "**. 10 A.M. Automatic",
+   "The Black Keys",
+   "\u201cAY Act Nice and Gentle",
+   "a)",
+   ", te"
+  ]
+ },
+ {
+  "n": 10,
+  "title": "My Music - Playlists",
+  "status": "ok",
+  "read": [
+   "Playlists",
+   "pews Discover Weekly",
+   "TES EK",
+   "VVC",
+   "os oo",
+   "66",
+   "FileSystemPlayList",
+   "mao ay"
+  ]
+ },
+ {
+  "n": 11,
+  "title": "My Music - Audiobooks",
+  "status": "ok",
+  "read": [
+   "Audiobooks",
+   "e~ The Art of War",
+   "8:57PM",
+   "~ The Art of War"
+  ]
+ },
+ {
+  "n": 12,
+  "title": "My Music - Podcasts",
+  "status": "ok",
+  "read": [
+   "Podcasts",
+   "ae",
+   "The Adam and Dr. Drev >",
+   "Show.",
+   "iim Adam Carolla Show",
+   "il",
+   "8:57PM",
+   "(="
+  ]
+ },
+ {
+  "n": 13,
+  "title": "My Music - Podcasts - a podcast",
+  "status": "ok",
+  "read": [
+   "The Adam and Dr. Drew Show",
+   "#2107 - Dr. Drew Reacts to ti",
+   "Classic #803 Big Swinging Black",
+   "#2107 - Why Dating Is Dying w/ El",
+   "Classic #217: Big Freedia",
+   "8:57PM"
+  ]
+ },
+ {
+  "n": 14,
+  "title": "My Music - Radio",
+  "status": "ok",
+  "read": [
+   "Radio",
+   "eis |",
+   "The 615: Today's Count",
+   "Gay 80s Radio",
+   "\u2018t.",
+   "AC/DC Radio",
+   "Whe | Agatha All Along (feat. Kath",
+   "8:57PM"
+  ]
+ },
+ {
+  "n": 15,
+  "title": "My Music - Search",
+  "status": "ok",
+  "read": [
+   "Search",
+   "as",
+   "8:57PM",
+   "Ce,",
+   "Ca,"
+  ]
+ },
+ {
+  "n": 16,
+  "title": "My Music - Switch Library",
+  "status": "ok",
+  "read": [
+   "Libraries",
+   "Music Assistant",
+   "J >",
+   "8:57PM",
+   "-_\u2014"
+  ]
+ },
+ {
+  "n": 17,
+  "title": "Settings",
+  "status": "ok",
+  "read": [
+   "Settings",
+   "Audio Settings",
+   "\u201c0: Brightness",
+   "Choose Player",
+   "13/4 Home Menu",
+   "8:58PM",
+   "\u201cOr Brightness",
+   "1/4 Home Menu"
+  ]
+ },
+ {
+  "n": 18,
+  "title": "Settings - Alarm Clock",
+  "status": "ok",
+  "read": [
+   "Alarm Clock",
+   "lot Supported - HA can trigg >",
+   "8:58PM"
+  ]
+ },
+ {
+  "n": 19,
+  "title": "Settings - HA Extras",
+  "status": "ok",
+  "read": [
+   "HA Extras",
+   "at Cameras",
+   "a Dashboards",
+   "o Controls",
+   "cS Scenes and Scripts",
+   "il",
+   "8:58PM",
+   "it Cameras"
+  ]
+ },
+ {
+  "n": 20,
+  "title": "Settings - HA Extras - Cameras",
+  "status": "ok",
+  "read": [
+   "Cameras",
+   "Doorbell",
+   "ot Driveway",
+   "il",
+   "8:58PM",
+   "at Driveway"
+  ]
+ },
+ {
+  "n": 21,
+  "title": "Settings - HA Extras - Cameras - a camera",
+  "status": "ok",
+  "read": [
+   "=o,",
+   "107147400 CL watt f$h pn",
+   "LA",
+   "Pn",
+   "re '",
+   "re",
+   "od",
+   "fi"
+  ]
+ },
+ {
+  "n": 22,
+  "title": "Settings - HA Extras - Dashboards",
+  "status": "ok",
+  "read": [
+   "Dashboards",
+   "a Schedule Dashboard",
+   "a Squeezebox",
+   "il",
+   "8:58PM",
+   "-\u2014",
+   "an Squeezebox"
+  ]
+ },
+ {
+  "n": 23,
+  "title": "Settings - HA Extras - Dashboards - a dashboard",
+  "status": "ok",
+  "read": [
+   "sa",
+   "59",
+   "te",
+   "we",
+   "Seaee",
+   "red",
+   "one",
+   "wets"
+  ]
+ },
+ {
+  "n": 24,
+  "title": "Settings - HA Extras - Controls",
+  "status": "ok",
+  "read": [
+   "Controls",
+   "8 Jeft's Desk New",
+   "Jeff's Fire TV",
+   "idle",
+   "@ Porch Lights",
+   "il",
+   "8:59PM"
+  ]
+ },
+ {
+  "n": 25,
+  "title": "Settings - HA Extras - Controls - a control",
+  "status": "ok",
+  "read": [
+   "Jeff's Desk New",
+   "Jeff's Desk New is idle",
+   "Turn On",
+   "Turn Off",
+   "Cancel",
+   "8:59PM"
+  ]
+ },
+ {
+  "n": 26,
+  "title": "Settings - HA Extras - Scenes and Scripts",
+  "status": "ok",
+  "read": [
+   "Scenes and Scripts",
+   "cS Test Scene",
+   "il",
+   "8:59PM"
+  ]
+ },
+ {
+  "n": 27,
+  "title": "Settings - HA Extras - Scenes and Scripts - a scene",
+  "status": "ok",
+  "read": [
+   "Test Scene",
+   "Run",
+   "Cancel",
+   "it",
+   "8:59PM"
+  ]
+ },
+ {
+  "n": 28,
+  "title": "Settings - HA Extras - Status",
+  "status": "ok",
+  "read": [
+   "Status",
+   "Lennox Discharge Tem y",
+   "CG",
+   "73.15",
+   "Lennox HVAC State",
+   "oO",
+   "OFF",
+   "il"
+  ]
+ }
+]

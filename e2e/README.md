@@ -22,6 +22,12 @@ Music Assistant's own websocket API needs a login token. The JSON-RPC on the Squ
    volume to 0 for the run and restores it afterwards when you pass `--silent`; by default it plays at the player's current volume. Mute is not used:
    Squeezelite treats the protocol's mute as an output off switch that the next stream undoes.
 
+### The menu walkthrough
+
+`python3 e2e/walk.py capture --device radio --out <folder>` walks the menus on a device and saves a screenshot of each step, and
+`python3 e2e/walk.py pdf ...` builds the PDF. The steps are written once for every device in `walkthrough/steps.py`; a wrapper per
+device does them (`walkthrough/radio.py` for the Radio). See `docs/walkthrough/README.md`.
+
 ### Running on a Squeezebox Radio as well as the piCorePlayer
 
 `config.json` can list more devices under `"devices"` (see `config.example.json`). `--device radio` runs against that one: its keys

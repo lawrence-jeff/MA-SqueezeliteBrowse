@@ -20,6 +20,58 @@ end
 macroDelay(2000)
 pcall(function() G.jiveMain:removeItemById("macroPlay") end)
 
+-- While the agent drives the device a popup says so and physical input (keys, knob, touch, remote) is swallowed, so nobody
+-- disturbs a test by accident. The agent's own actions are not input events and still get through. The popup is taken down
+-- while a command runs (it would sit on top of the window the command acts on and show in screenshots) and put back after.
+-- If the agent dies, the lock lets go by itself: everything checks a heartbeat the loop keeps up.
+local Popup = macroRequire("jive.ui.Popup")
+local Icon = macroRequire("jive.ui.Icon")
+local Label = macroRequire("jive.ui.Label")
+local jui = G.jive.ui
+local HEARTBEAT_LIMIT = 60  -- seconds without a sign of life before the lock lets go
+local beat_at = os.time()
+local lock_popup, lock_listener
+local function alive() return os.time() - beat_at < HEARTBEAT_LIMIT end
+local function beat() beat_at = os.time() end
+
+local function lock_on()
+  if lock_listener then return end
+  lock_listener = Framework:addListener(jui.EVENT_KEY_ALL | jui.EVENT_SCROLL | jui.EVENT_MOUSE_ALL | jui.EVENT_IR_ALL, function()
+    if alive() then return jui.EVENT_CONSUME end
+    return jui.EVENT_UNUSED
+  end)
+end
+
+local function popup_hide()
+  if lock_popup then pcall(function() lock_popup:hide() end); lock_popup = nil end
+end
+
+local function popup_show()
+  popup_hide()
+  local popup = Popup("waiting_popup")
+  popup:addWidget(Icon("icon_connected"))
+  popup:addWidget(Label("text", "Automated testing in progress"))
+  popup:addWidget(Label("subtext", "Please do not touch this device"))
+  popup:setAllowScreensaver(false)
+  popup:setAlwaysOnTop(true)
+  popup:setAutoHide(false)
+  popup:addListener(jui.EVENT_ALL_INPUT, function()
+    if alive() then return jui.EVENT_CONSUME end
+    return jui.EVENT_UNUSED
+  end)
+  -- if the agent has died, take the popup down so the device can be used again
+  popup:addTimer(2000, function()
+    if not alive() then pcall(function() popup:hide() end) end
+  end)
+  popup:show()
+  lock_popup = popup
+end
+
+local function lock_off()
+  popup_hide()
+  if lock_listener then pcall(function() Framework:removeListener(lock_listener) end); lock_listener = nil end
+end
+
 local function esc(s)
   s = tostring(s)
   s = string.gsub(s, '[%c"\\]', function(c)
@@ -227,19 +279,25 @@ local function reply(id, ok, note, quit)
   if f then f:write(enc(result)); f:close(); os.rename(OUT .. ".tmp", OUT) end
 end
 
+lock_on()
 reply("ready", true, "agent started")
+popup_show()
 while true do
+  beat()
   local f = G.io.open(CMD, "r")
   if f then
     local line = f:read("*l"); f:close()
     os.remove(CMD)
     if line then
       local id, verb, arg = line:match("^(%S+)%s+(%S+)%s*(.*)$")
-      if verb == "exit" then reply(id, true, "exiting"); break end
+      if verb == "exit" then lock_off(); reply(id, true, "exiting"); break end
+      popup_hide()
       -- no pcall here: the commands yield (macroDelay), which a pcall cannot cross
       value = nil
       local res, err = run(verb, arg)
       reply(id, res == true, err)
+      beat()
+      popup_show()
     end
   end
   macroDelay(150)

@@ -57,6 +57,11 @@ class Agent:
 
     def start(self, timeout: float = 120) -> dict:
         w = self.walker
+        # a running agent blocks the device's keys (that is its job): let it go before the UI is closed with key presses
+        try:
+            self.send("exit", timeout=10)
+        except Exception:  # noqa: BLE001 - none running
+            pass
         self.save_crash_log()
         w.sh(f"cd {self.folder} && rm -f {CMD} {OUT} {OUT}.tmp; true")
         w.install()

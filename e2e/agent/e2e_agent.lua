@@ -64,6 +64,11 @@ local function item_at(menu, i)
   local row = {}
   for _, key in G.ipairs({ "text", "icon", "icon-id", "id", "type", "style", "textkey", "homeMenuText" }) do
     local v = item[key]
+    if type(v) == "table" and key ~= "icon" then
+      -- a localized string and the like: its text
+      local okT, t = pcall(tostring, v)
+      if okT and type(t) == "string" and not string.match(t, "^table: ") then v = t end
+    end
     if type(v) == "string" or type(v) == "number" or type(v) == "boolean" then row[key] = v end
   end
   return row
@@ -107,6 +112,38 @@ local function lua_pattern(label)
   return "^" .. string.gsub(label, "([%%^$().%[%]*+%-?])", "%%%1")
 end
 
+-- wait until the window and the menu stop changing (a window or its rows that are still loading change between looks)
+local function signature()
+  local info = screen()
+  local first = info.items and info.items[1]
+  return table.concat({ info.windows, info.title or "", info.menu_size or "", info.menu_index or "", first and first.text or "" }, "|")
+end
+
+local function settle(min_ms, max_ms)
+  macroDelay(min_ms or 400)
+  local last, stable = signature(), 0
+  local waited = min_ms or 400
+  while waited < (max_ms or 6000) and stable < 2 do
+    macroDelay(250)
+    waited = waited + 250
+    local now = signature()
+    if now == last then stable = stable + 1 else stable = 0; last = now end
+  end
+end
+
+local function scroll(n)
+  local menu = _macroFindWidget(Menu)
+  if not menu then return false end
+  if n == 0 then return true end
+  local target = (menu:getSelectedIndex() or 1) + n
+  local size = menu:getSize()
+  if target < 1 then target = 1 end
+  if target > size then target = size end
+  menu:setSelectedIndex(target)
+  macroDelay(120)
+  return true
+end
+
 local ACTIONS = { long_press = "add", queue = "go_playlist" }
 
 local value
@@ -115,21 +152,62 @@ local function run(verb, arg)
   elseif verb == "dump" then return true
   elseif verb == "home" then macroHome(600, 900); return true
   elseif verb == "action" then macroAction(tonumber(arg and arg:match("^(%d+)%s")) or 900, (arg:gsub("^%d+%s+", ""))); return true
-  elseif verb == "go" then macroAction(900, "go"); return true
-  elseif verb == "back" then macroAction(900, "back"); return true
-  elseif verb == "long_press" then macroAction(1800, "add"); return true
-  elseif verb == "queue" then macroAction(1800, "go_playlist"); return true
+  elseif verb == "go" then macroAction(100, "go"); settle(700); return true
+  elseif verb == "back" then macroAction(100, "back"); settle(500); return true
+  elseif verb == "long_press" then macroAction(100, "add"); settle(1500, 8000); return true
+  elseif verb == "queue" then macroAction(100, "go_playlist"); settle(1500, 8000); return true
   elseif verb == "pick" then return pick(lua_pattern(arg))
   elseif verb == "open" then
     if not pick(lua_pattern(arg)) then return false end
-    macroAction(900, "go"); return true
+    macroAction(100, "go"); settle(700); return true
+  elseif verb == "openid" then
+    -- open the home/menu entry with this id (entries such as My Music have no text of their own on the home menu)
+    local menu = _macroFindWidget(Menu)
+    if not menu then return false end
+    for i = 1, menu:getSize() do
+      local row = item_at(menu, i)
+      if row and row.id == arg then
+        menu:setSelectedIndex(i); macroDelay(150)
+        macroAction(100, "go"); settle(700)
+        return true
+      end
+    end
+    return false
   elseif verb == "nth" then
     local menu = _macroFindWidget(Menu)
     local n = tonumber(arg)
     if not menu or menu:getSize() < n then return false end
     menu:setSelectedIndex(n); macroDelay(150); return true
+  elseif verb == "scroll" then return scroll(tonumber(arg) or 0)
+  elseif verb == "do" then
+    -- a sequence in one command: a:<action> runs a UI action and settles, s:<n> moves the selection by n, w:<ms> waits
+    for token in string.gmatch(arg, "%S+") do
+      local kind, val = token:match("^(%a):(.+)$")
+      if kind == "a" then macroAction(100, val); settle(500)
+      elseif kind == "s" then if not scroll(tonumber(val) or 0) then return nil, "no menu for " .. token end
+      elseif kind == "w" then macroDelay(tonumber(val) or 200)
+      else return nil, "bad token " .. token end
+    end
+    return true
   elseif verb == "wait" then macroDelay(tonumber(arg) or 500); return true
-  elseif verb == "shot" then return macroScreenshot(200, arg)
+  elseif verb == "shot" then
+    -- the whole screen: every open window from the bottom up (a menu or popup is drawn over the window under it)
+    macroDelay(900)
+    local drawn = pcall(function()
+      local ui = G.jive.ui
+      local Surface = macroRequire("jive.ui.Surface")
+      local w, h = Framework:getScreenSize()
+      local surface = Surface:newRGB(w, h)
+      local stack = Framework.windowStack
+      local bottom = 1
+      for i = 1, #stack do
+        if not stack[i].transparent then bottom = i; break end
+      end
+      for i = bottom, 1, -1 do stack[i]:draw(surface, ui.LAYER_FRAME | ui.LAYER_CONTENT) end
+      surface:saveBMP(FOLDER .. "/" .. arg .. ".bmp")
+    end)
+    if not drawn then return macroScreenshot(200, arg) end  -- the top window only
+    return true
   elseif verb == "eval" then
     -- run a Lua file (relative to the folder) in this environment; what it returns goes into "value"
     local f, err = G.loadfile(FOLDER .. "/" .. arg)

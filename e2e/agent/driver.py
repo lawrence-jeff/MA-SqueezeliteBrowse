@@ -41,8 +41,23 @@ class Agent:
     def folder(self) -> str:
         return self.walker.folder
 
+    def save_crash_log(self) -> None:
+        """Keep what the player logged about the agent's last crash: the log starts again with the UI."""
+        try:
+            log = getattr(w := self.walker, "LOG_FILE", "/var/log/pcp_jivelite.log")
+            text = w.sh(f"grep -a -A8 'task error MacroPlay' {log} | tail -60; true").decode(errors="replace").strip()
+        except Exception:  # noqa: BLE001 - best effort
+            return
+        if text:
+            folder = HERE.parent / "reports"
+            folder.mkdir(exist_ok=True)
+            with open(folder / "agent-errors.log", "a") as handle:
+                handle.write(f"--- {time.strftime('%Y-%m-%d %H:%M:%S')}\n{text}\n")
+            say("The agent's crash was logged in reports/agent-errors.log")
+
     def start(self, timeout: float = 120) -> dict:
         w = self.walker
+        self.save_crash_log()
         w.sh(f"cd {self.folder} && rm -f {CMD} {OUT} {OUT}.tmp; true")
         w.install()
         w._push("Macros.lua", MACROS_LUA)
@@ -60,6 +75,14 @@ class Agent:
                 return out
             time.sleep(2)
         raise RuntimeError("the agent did not report ready")
+
+    def ensure(self) -> None:
+        """Use the agent that is running on the device, or install and start one."""
+        try:
+            self.send("ping", timeout=8)
+            say("The test agent is already running on the device")
+        except Exception:  # noqa: BLE001 - not running (or not installed)
+            self.start()
 
     def _read(self) -> dict | None:
         data = self.walker.sh(f"cat {self.folder}/{OUT} 2>/dev/null; true").decode().strip()

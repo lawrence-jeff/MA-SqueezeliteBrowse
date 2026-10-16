@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import html
 import json
+import os
 import re
 import subprocess
 import time
@@ -407,6 +408,7 @@ class Ctx:
         ma: MaApi | None = None,
     ) -> None:
         self.ui = ui
+        self._snap_text: dict[str, list[str]] = {}  # screen text recorded by snap() for a UI that can tell it
         self.ma = ma
         self.test_volume = 40  # the level the cases that need sound set; run.py takes it from the device's "test_volume"
         self.live = False  # print each check as it is recorded
@@ -456,7 +458,15 @@ class Ctx:
         assert self.ui is not None and self.result is not None
         folder = Path(__file__).resolve().parent / "reports" / "screens"
         folder.mkdir(parents=True, exist_ok=True)
-        return self.ui.screenshot(folder / f"{self.result.case_id}-{label}.jpg")
+        dest = folder / f"{self.result.case_id}-{label}.jpg"
+        screen_text = getattr(self.ui, "screen_text", None)
+        if screen_text is not None:
+            # a UI that knows what the screen shows: keep that text for check_snap; a picture only if asked for
+            self._snap_text[str(dest)] = screen_text()
+            if os.environ.get("E2E_SCREENSHOTS"):
+                return self.ui.screenshot(dest)
+            return dest
+        return self.ui.screenshot(dest)
 
     def check_snap(
         self, shot: Path, label: str, present: tuple[str, ...] = (), absent: tuple[str, ...] = ()
@@ -464,7 +474,15 @@ class Ctx:
         """Read a screenshot with OCR and check what is (and is not) on the screen."""
         import ocr  # noqa: PLC0415
 
-        lines = ocr.read_lines(shot)
+        recorded = self._snap_text.get(str(shot))
+        screen_text = getattr(self.ui, "screen_text", None)
+        # a UI that knows what the screen shows (the test agent) is asked, not the picture
+        if recorded is not None:
+            lines = recorded
+        elif screen_text is not None:
+            lines = screen_text()
+        else:
+            lines = ocr.read_lines(shot)
         for wanted in present:
             self.check(f"{label}: screen shows '{wanted}'", ocr.contains(lines, wanted), f"read: {lines[:14]}")
         for unwanted in absent:
@@ -478,6 +496,19 @@ class Ctx:
 
         The screenshot is kept in reports/screens/ as <case id>-<label>.jpg.
         """
+        screen_text = getattr(self.ui, "screen_text", None)
+        if screen_text is not None:
+            # a UI that knows what the screen shows (the test agent): check its text, no OCR; a picture only if asked for
+            import ocr  # noqa: PLC0415
+
+            lines = screen_text()
+            if os.environ.get("E2E_SCREENSHOTS"):
+                self.snap(label)
+            for wanted in present:
+                self.check(f"{label}: screen shows '{wanted}'", ocr.contains(lines, wanted), f"screen: {lines[:14]}")
+            for unwanted in absent:
+                self.check(f"{label}: screen does not show '{unwanted}'", not ocr.contains(lines, unwanted), f"screen: {lines[:14]}")
+            return lines
         return self.check_snap(self.snap(label), label, present, absent)
 
     # -- steps

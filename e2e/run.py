@@ -89,6 +89,14 @@ def build_ctx(config: dict, args: argparse.Namespace) -> Ctx:
             return sum(1 for row in menu if str(row.get("id", "")).startswith("preset_"))
 
         ui.preset_counter = count_presets
+        if getattr(args, "agent", False):
+            # navigate through the resident test agent on the device (see agent/) instead of the keyboard
+            from agent.driver import make_agent  # noqa: PLC0415
+            from agent.ui_agent import AgentUi  # noqa: PLC0415
+
+            agent = make_agent(config)
+            agent.ensure()
+            ui = AgentUi(ui, agent)
     ma = None
     if os.environ.get("E2E_MA_TOKEN"):
         ma = MaApi(urlparse(config["server_url"]).hostname or "", os.environ["E2E_MA_TOKEN"])
@@ -255,6 +263,7 @@ def main() -> int:
     parser.add_argument("--config", default=str(HERE / "config.json"))
     parser.add_argument("--device", help="run against one of the config's \"devices\" instead of the top-level player")
     parser.add_argument("--only", help="comma-separated case ids, e.g. E2E-01,E2E-04")
+    parser.add_argument("--agent", action="store_true", help="navigate through the resident test agent on the device, not the keyboard")
     parser.add_argument("--list", action="store_true", help="list the cases and exit")
     parser.add_argument("--dry-run", action="store_true", help="discover media and show the plan only")
     parser.add_argument("--yes", action="store_true", help="skip the confirmation prompt")

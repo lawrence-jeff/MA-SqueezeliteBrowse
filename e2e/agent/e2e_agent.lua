@@ -279,11 +279,18 @@ local function reply(id, ok, note, quit)
   if f then f:write(enc(result)); f:close(); os.rename(OUT .. ".tmp", OUT) end
 end
 
+local IDLE_RELEASE = 90  -- seconds without a command before the device is given back (the next command locks it again)
+local last_command = os.time()
+local locked = true
 lock_on()
 reply("ready", true, "agent started")
 popup_show()
 while true do
   beat()
+  if locked and os.time() - last_command > IDLE_RELEASE then
+    lock_off()
+    locked = false
+  end
   local f = G.io.open(CMD, "r")
   if f then
     local line = f:read("*l"); f:close()
@@ -292,11 +299,14 @@ while true do
       local id, verb, arg = line:match("^(%S+)%s+(%S+)%s*(.*)$")
       if verb == "exit" then lock_off(); reply(id, true, "exiting"); break end
       popup_hide()
+      if not locked then lock_on(); locked = true end
+      last_command = os.time()
       -- no pcall here: the commands yield (macroDelay), which a pcall cannot cross
       value = nil
       local res, err = run(verb, arg)
       reply(id, res == true, err)
       beat()
+      last_command = os.time()
       popup_show()
     end
   end

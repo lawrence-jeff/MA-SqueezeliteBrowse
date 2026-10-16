@@ -24,8 +24,9 @@ ASP_SRC=/config/ma-squeezelite-browse/aioslimproto
 SQZ_SRC=/config/ma-squeezelite-browse/server
 SQZ_DEST=/app/venv/lib/python3.14/site-packages/music_assistant/providers/squeezelite
 ASP_DEST=/app/venv/lib/python3.14/site-packages/aioslimproto
+TRANSLATIONS_DEST=/app/venv/lib/python3.14/site-packages/music_assistant/translations
 ASP_FILES="cli.py client.py models.py server.py"
-SQZ_FILES="provider.py browselibrary.py player.py strings.json haextras.py"
+SQZ_FILES="provider.py browselibrary.py browseuser.py player.py constants.py strings.json haextras.py"
 
 docker inspect $CONTAINER > /dev/null 2>&1 \
     || { echo "FAILED: $CONTAINER does not exist; start the Developer App first"; exit 1; }
@@ -84,6 +85,10 @@ docker exec $CONTAINER touch $FLAG
 echo "=== Copying the patch files ==="
 for f in $ASP_FILES; do docker cp "$ASP_SRC/$f" $CONTAINER:$ASP_DEST/$f; done
 for f in $SQZ_FILES; do docker cp "$SQZ_SRC/$f" $CONTAINER:$SQZ_DEST/$f; done
+# the settings labels are read from Music Assistant's own translations, which the provider's strings.json feeds
+if [ -f "$SQZ_SRC/en.json" ]; then
+    docker cp "$SQZ_SRC/en.json" $CONTAINER:$TRANSLATIONS_DEST/en.json
+fi
 docker exec $CONTAINER mkdir -p $SQZ_DEST/static
 docker cp "$SQZ_SRC/static/." $CONTAINER:$SQZ_DEST/static
 docker exec $CONTAINER python3 -c "import music_assistant.providers.squeezelite.provider" && echo "imports clean"

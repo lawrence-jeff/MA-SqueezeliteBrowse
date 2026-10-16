@@ -101,7 +101,8 @@ def capture(args: argparse.Namespace) -> int:
         if needs_track:
             rpc.call("playlist", "clear")
             rpc.call("stop")
-        rpc.call("mixer", "volume", original_volume)
+        if original_volume > 0:  # a player that starts muted or at 0 reads back 0 or negative: restoring that would mute it
+            rpc.call("mixer", "volume", original_volume)
 
     log = []
     for number, step in zip(numbers, chosen):

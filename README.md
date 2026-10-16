@@ -48,6 +48,15 @@ The patched source itself isn't in this repo - it lives in two forks: `aioslimpr
 
 The Developer App installs both forks for you (the server branch names the `aioslimproto` branch it needs), so there is nothing to clone or set up by hand. This repo holds this README, the end-to-end tests (`e2e/`), the menu walkthrough screenshots and the development scripts described below.
 
+## International characters (Chinese, Japanese, Korean)
+
+The standard font on a Squeezebox or JiveLite device has no glyphs for these, so an album or track with such a name shows as empty boxes (and on some devices the list stops drawing there). The Music Assistant provider offers a **Font Replacer** applet to the device's own Applet Installer, as a Logitech Media Server does:
+
+1. On the device, open Settings > Advanced > Applet Installer and install **Font Replacer (international characters)**.
+2. Restart the app (on a piCorePlayer, JiveLite from its Quit tile), then choose **Font Replacer** on the home menu, **Replace Font** and **Continue**. The app restarts with the new font.
+
+On a piCorePlayer the fonts are kept in the user fonts folder and the settings are backed up, so they survive a reboot. The applet is [LMS-Community/applet-FontReplacer](https://github.com/LMS-Community/applet-FontReplacer) with that one change (`applets/FontReplacer/` in this repo; `applets/build.py` builds the zip the provider serves). A Squeezebox Radio, Touch or Controller has little free memory (the merged fonts are about 8 MB): use at your own risk.
+
 ## Experimental Proof Of Concept
 
 Things here go beyond browsing and playing music. They are experiments to see what Squeezebox-style clients can do when the server drives their menus, and they may not belong in Music Assistant itself.

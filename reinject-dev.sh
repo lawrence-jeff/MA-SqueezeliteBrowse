@@ -26,7 +26,7 @@ SQZ_DEST=/app/venv/lib/python3.14/site-packages/music_assistant/providers/squeez
 ASP_DEST=/app/venv/lib/python3.14/site-packages/aioslimproto
 TRANSLATIONS_DEST=/app/venv/lib/python3.14/site-packages/music_assistant/translations
 ASP_FILES="cli.py client.py models.py server.py"
-SQZ_FILES="provider.py browselibrary.py browseuser.py player.py constants.py strings.json haextras.py"
+SQZ_FILES="provider.py browselibrary.py browseuser.py applets.py player.py constants.py strings.json haextras.py"
 
 docker inspect $CONTAINER > /dev/null 2>&1 \
     || { echo "FAILED: $CONTAINER does not exist; start the Developer App first"; exit 1; }

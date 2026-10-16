@@ -273,6 +273,21 @@ class PlayerUi:
     ]
 
     # Home grid geometry at 1920x1080: tiles 384 wide and 306 high from y=147, five to a row.
+    def find_tile(self, word: str, columns: int = 5, rows: int = 3) -> int | None:
+        """Position (row by row, from 0) of the tile of the home grid whose label contains word, from one screenshot; None if not seen."""
+        import ocr  # noqa: PLC0415
+        from PIL import Image  # noqa: PLC0415
+
+        with tempfile.TemporaryDirectory() as tmp:
+            image = Image.open(self.screenshot(Path(tmp) / "grid.jpg")).convert("RGB")
+            for row in range(rows):
+                for col in range(columns):
+                    crop = Path(tmp) / f"label-{row}-{col}.png"
+                    image.crop((col * 384, 147 + row * 306 + 236, col * 384 + 384, 147 + row * 306 + 300)).save(crop)
+                    if word.lower() in " ".join(ocr.read_lines(crop)).lower():
+                        return row * columns + col
+        return None
+
     def highlighted_tile_label(self) -> str:
         """The label under the highlighted tile of a grid screen (the box around it is grey on the purple wallpaper)."""
         import ocr  # noqa: PLC0415
@@ -304,6 +319,13 @@ class PlayerUi:
         say("Closing JiveLite from its Quit tile")
         self.home()
         self.to_top()
+        index = self.find_tile("quit")
+        if index is not None:
+            # one screenshot to find the tile, then count the moves; the confirmation below is the only other look
+            self.press(*["right"] * index, settle=0.3)
+            if "quit" in self.highlighted_tile_label().lower():
+                self.press("enter", settle=1.0)
+                return
         for _ in range(7):
             label = self.highlighted_tile_label()
             if "quit" in label.lower():

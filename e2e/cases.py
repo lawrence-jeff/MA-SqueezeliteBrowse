@@ -377,6 +377,27 @@ def browse_lists(ctx: Ctx) -> None:
             ctx.add(check_icon(ctx.rpc.base_url, row["icon"]), prefix=f"{mode}: ")
 
 
+@case("E2E-34", "Every list reports as many rows as it sends, so a device can scroll to the last one", "Browse listings > counts")
+def browse_list_counts(ctx: Ctx) -> None:
+    """A device sizes its list from the count and waits for every row it was promised: a count above the rows that
+    arrive (Music Assistant counts some items its listing leaves out) leaves it stuck on the last row it has."""
+    page = 40
+    for mode in ("artists", "albums", "tracks", "playlists", "audiobooks", "podcasts", "radio"):
+        received = 0
+        reported = 0
+        while True:
+            result = ctx.rpc.browse(mode, received, page)
+            rows = result.get("item_loop", [])
+            reported = int(result.get("count") or 0)
+            received += len(rows)
+            if len(rows) < page:
+                break
+        if not received and not reported:
+            ctx.skip(mode, "empty in this library")
+            continue
+        ctx.check(f"{mode}: the count equals the rows sent", reported == received, f"count {reported}, {received} rows received")
+
+
 @case("E2E-15", "Favorites lists All Favorites and one entry per type, with icons", "Favorites")
 def favorites_menu(ctx: Ctx) -> None:
     rows = ctx.rpc.browse("favorites", 0, 40).get("item_loop", [])

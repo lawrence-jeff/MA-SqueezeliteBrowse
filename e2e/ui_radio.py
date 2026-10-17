@@ -37,6 +37,8 @@ KEYS = {
     "next": (KEYPAD, 163), "previous": (KEYPAD, 165),
     "select": (FRONT, 106), "mute": (FRONT, 113), "power": (FRONT, 116),
     **{f"preset{i}": (KEYPAD, 58 + i) for i in range(1, 7)},
+    # the alarm button: the keypad also has 78 (the add button) and 142, the only one left; pressing 142 opens Settings > Alarm Clock
+    "alarm": (KEYPAD, 142),
 }
 SCROLL = 8  # EV_REL code of the scroll knob
 VOLUME = 9  # EV_REL code of the volume knob: only the volume_* actions may use it

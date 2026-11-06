@@ -57,6 +57,10 @@ The standard font on a Squeezebox or JiveLite device has no glyphs for these, so
 
 On a piCorePlayer the fonts are kept in the user fonts folder and the settings are backed up, so they survive a reboot. The applet is [LMS-Community/applet-FontReplacer](https://github.com/LMS-Community/applet-FontReplacer) with that one change (`applets/FontReplacer/` in this repo; `applets/build.py` builds the zip the provider serves). A Squeezebox Radio, Touch or Controller has little free memory (the merged fonts are about 8 MB): use at your own risk.
 
+## Device status in the player's status
+
+The **Device status for Music Assistant** applet (`applets/MaDeviceStatus/`; `applets/build_madevicestatus.py` builds the zip the provider serves) reports the numbers the Radio's own Diagnostics screen shows: memory in use, uptime and, on a Squeezebox Radio, the battery. Install it from Settings > Advanced > Applet Installer and restart the device; it has no menu and sends one small request a minute. The provider keeps the latest report of each player and adds it to the player's `status` as `ma_memory_used` (percent), `ma_uptime` (seconds), `ma_battery_level` (percent), `ma_charger_state` and `ma_battery_temperature` (°C). A player that has not reported for five minutes has none of them. A piCorePlayer reports memory and uptime only.
+
 ## Experimental Proof Of Concept
 
 Things here go beyond browsing and playing music. They are experiments to see what Squeezebox-style clients can do when the server drives their menus, and they may not belong in Music Assistant itself.

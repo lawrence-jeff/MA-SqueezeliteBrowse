@@ -1,0 +1,5 @@
+#
+# The two letter codes are defined by ISO 639-1
+
+MA_DEVICE_STATUS
+	EN	Device status for Music Assistant

@@ -6,21 +6,23 @@ applets.MaDeviceStatus.MaDeviceStatusApplet - Report the device's memory, uptime
 
 =head1 DESCRIPTION
 
-Every minute the applet reads the numbers the Diagnostics applet shows on the Radio's screen (memory in use, uptime and the
-battery: charge, charger state and temperature) and sends them to the server with the request "madevice". Music Assistant adds
-them to the player's status as ma_* fields. A device without the Radio's power chip (a piCorePlayer) reports memory and uptime
-only. Nothing is sent while the server is not connected.
+Every minute the applet reads the numbers the Diagnostics applet shows on the Radio's screen (memory in use, uptime, the
+wireless signal and the battery: charge, charger state and temperature) and sends them to the server with the request
+"madevice". Music Assistant adds them to the player's status as ma_* fields. A device without the Radio's power chip (a
+piCorePlayer) reports no battery, and one without a wireless interface no signal. Nothing is sent while the server is not
+connected.
 
 =cut
 --]]
 
 
-local io, ipairs, math, pcall, tonumber = io, ipairs, math, pcall, tonumber
+local io, ipairs, jnt, math, pcall, tonumber = io, ipairs, jnt, math, pcall, tonumber
 
 local oo            = require("loop.simple")
 local string        = require("string")
 
 local Applet        = require("jive.Applet")
+local Networking    = require("jive.net.Networking")
 local Timer         = require("jive.ui.Timer")
 local appletManager = require("jive.AppletManager")
 
@@ -71,6 +73,12 @@ local function _collect()
 		if total and free and buffers and cached and total > 0 then
 			values[#values + 1] = "mem:" .. math.ceil((total - (free + buffers + cached)) / total * 100)
 		end
+	end
+
+	-- the wireless signal in percent, as the Diagnostics applet shows it; a wired device has no wireless interface
+	local wlan = Networking:wirelessInterface(jnt)
+	if wlan then
+		values[#values + 1] = "sig:" .. wlan:getSignalStrength()
 	end
 
 	local charger = _number(POWER .. "charger_state")

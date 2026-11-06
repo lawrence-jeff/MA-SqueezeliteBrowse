@@ -59,7 +59,7 @@ On a piCorePlayer the fonts are kept in the user fonts folder and the settings a
 
 ## Device status in the player's status
 
-The **Device status for Music Assistant** applet (`applets/MaDeviceStatus/`; `applets/build_madevicestatus.py` builds the zip the provider serves) reports the numbers the Radio's own Diagnostics screen shows: memory in use, uptime and, on a Squeezebox Radio, the battery. Install it from Settings > Advanced > Applet Installer and restart the device; it has no menu and sends one small request a minute. The provider keeps the latest report of each player and adds it to the player's `status` as `ma_memory_used` (percent), `ma_uptime` (seconds), `ma_battery_level` (percent), `ma_charger_state` and `ma_battery_temperature` (°C). A player that has not reported for five minutes has none of them. A piCorePlayer reports memory and uptime only.
+The **Device status for Music Assistant** applet (`applets/MaDeviceStatus/`; `applets/build_madevicestatus.py` builds the zip the provider serves) reports the numbers the Radio's own Diagnostics screen shows: memory in use, uptime, the wireless signal and, on a Squeezebox Radio, the battery. Install it from Settings > Advanced > Applet Installer and restart the device; it has no menu and sends one small request a minute. The provider keeps the latest report of each player and adds it to the player's `status` as `ma_memory_used` (percent), `ma_uptime` (seconds), `ma_battery_level` (percent), `ma_charger_state` and `ma_battery_temperature` (°C) and `ma_wifi_signal` (percent). Each report is also noted in the server log at debug level. A player that has not reported for five minutes has none of them. A piCorePlayer reports memory and uptime only.
 
 ## Experimental Proof Of Concept
 

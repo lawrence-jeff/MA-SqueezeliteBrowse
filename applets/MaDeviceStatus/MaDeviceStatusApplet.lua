@@ -20,9 +20,12 @@ local io, ipairs, jnt, math, pcall, tonumber = io, ipairs, jnt, math, pcall, ton
 
 local oo            = require("loop.simple")
 local string        = require("string")
+local table         = require("table")
 
 local Applet        = require("jive.Applet")
-local Networking    = require("jive.net.Networking")
+local log           = require("jive.utils.log").logger("applet.MaDeviceStatus")
+-- not in JiveLite, which has no wireless interface of its own to ask
+local _, Networking = pcall(require, "jive.net.Networking")
 local Timer         = require("jive.ui.Timer")
 local appletManager = require("jive.AppletManager")
 
@@ -75,10 +78,16 @@ local function _collect()
 		end
 	end
 
-	-- the wireless signal in percent, as the Diagnostics applet shows it; a wired device has no wireless interface
-	local wlan = Networking:wirelessInterface(jnt)
-	if wlan then
-		values[#values + 1] = "sig:" .. wlan:getSignalStrength()
+	-- the wireless signal in percent, as the Diagnostics applet shows it; a wired device has no wireless interface, and a
+	-- failure here must not keep the other values from being sent
+	local ok, signal = pcall(function()
+		local wlan = Networking and Networking:wirelessInterface(jnt)
+		return wlan and wlan:getSignalStrength()
+	end)
+	if ok and signal then
+		values[#values + 1] = "sig:" .. signal
+	elseif not ok then
+		log:warn("no wireless signal: ", signal)
 	end
 
 	local charger = _number(POWER .. "charger_state")
@@ -105,11 +114,16 @@ function _report(self)
 	local player = appletManager:callService("getCurrentPlayer")
 	local server = player and player:getSlimServer()
 	if not server or not server:isConnected() then
+		log:debug("no connected server, nothing sent")
 		return
 	end
 
 	local ok, values = pcall(_collect)
-	if not ok or #values == 0 then
+	if not ok then
+		log:warn("could not read the device status: ", values)
+		return
+	end
+	if #values == 0 then
 		return
 	end
 
@@ -117,11 +131,13 @@ function _report(self)
 	for _, value in ipairs(values) do
 		request[#request + 1] = value
 	end
+	log:debug("sending: ", table.concat(request, " "))
 	server:userRequest(nil, player:getId(), request)
 end
 
 
 function init(self)
+	log:info("reporting the device status every ", INTERVAL / 1000, " seconds")
 	self.timer = Timer(INTERVAL, function() self:_report() end)
 	self.timer:start()
 	self.first = Timer(FIRST, function() self:_report() end, true)

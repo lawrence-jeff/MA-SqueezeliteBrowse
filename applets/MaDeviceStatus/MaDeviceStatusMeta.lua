@@ -15,6 +15,7 @@ See L<applets.MaDeviceStatus.MaDeviceStatusApplet>.
 local oo            = require("loop.simple")
 
 local AppletMeta    = require("jive.AppletMeta")
+local log           = require("jive.utils.log").logger("applet.MaDeviceStatus")
 local appletManager = appletManager
 
 
@@ -28,10 +29,12 @@ end
 
 
 function registerApplet(meta)
+	log:info("registered")
 end
 
 
 function configureApplet(meta)
 	-- there is no menu entry: the applet runs in the background from the start
+	log:info("loading the applet")
 	appletManager:loadApplet("MaDeviceStatus")
 end
